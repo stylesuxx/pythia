@@ -1,9 +1,5 @@
-// Host stand-in so the dice code can be built and previewed off-device.
+// Host stand-in so the dice code can be built and previewed off-device. The
+// definition lives in adapters.c and is weak, so a test can script the draws.
 #pragma once
-
 #include <stdint.h>
-#include <stdlib.h>
-
-static inline uint32_t esp_random(void) {
-    return ((uint32_t)rand() << 17) ^ ((uint32_t)rand() << 6) ^ (uint32_t)rand();
-}
+uint32_t esp_random(void);

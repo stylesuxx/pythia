@@ -10,7 +10,7 @@ Owner's Manual, firmware series 0
 
 *PYTHIA//* is a single-purpose terminal for tabletop play. It rolls dice and it answers yes/no questions. It does nothing else, and it does those two things with hardware-grade randomness that no polyhedral die can match.
 
-The unit ships as a Waveshare ESP32-S3-Knob-Touch-LCD-1.8: a 360x360 round touch display set into a rotary knob, driven by an ESP32-S3 with 16 MB of flash and 8 MB of PSRAM. Rotation and touch are the only controls, and the only ones you will need.
+The unit ships as a [Waveshare ESP32-S3-Knob-Touch-LCD-1.8](https://www.waveshare.com/esp32-s3-knob-touch-lcd-1.8.htm): a 360x360 round touch display set into a rotary knob, driven by an ESP32-S3 with 16 MB of flash and 8 MB of PSRAM. Rotation and touch are the only controls, and the only ones you will need.
 
 ## 2. Operation
 
@@ -72,6 +72,7 @@ The oracle reveal can be previewed on a workstation without the unit attached:
 
 ```bash
 make boot                                          # boot.gif
+make check                                         # prove the reveal keeps its secret
 make menu                                          # menu.gif
 make reveal                                        # reveal.gif
 make reveal ANSWER=NO MODIFIER=- THEME=parchment

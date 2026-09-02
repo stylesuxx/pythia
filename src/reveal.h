@@ -29,6 +29,11 @@ void reveal_draw(uint32_t now, uint8_t alpha);
 
 bool reveal_is_animating(uint32_t now);
 
+// True while nothing drawn or felt so far could tell whether a modifier is
+// coming. Up to the instant this turns false, every frame and every haptic
+// cue is identical across the outcomes that share an answer.
+bool reveal_is_concealed(uint32_t now);
+
 #ifdef __cplusplus
 }
 #endif

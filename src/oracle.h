@@ -33,6 +33,11 @@ void oracle_begin(void);
 
 roll_t roll_die(const die_t *die);
 
+// The oracle's outcomes, ordered as its d6 table reads from worst to best, as
+// the rolls roll_die() would return for them.
+extern const uint8_t ORACLE_OUTCOME_COUNT;
+roll_t oracle_outcome(uint8_t index);
+
 #ifdef __cplusplus
 }
 #endif

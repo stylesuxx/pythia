@@ -5,6 +5,7 @@
 #   make reveal ANSWER=NO MODIFIER=- THEME=parchment
 #   make boot                render the power-on sequence to boot.gif
 #   make menu                render one full turn through the die list to menu.gif
+#   make check               build and run every test program under tests/
 #   make fonts               regenerate src/generated from the DejaVu faces
 #   make deps                fetch the third-party sources (none are committed)
 #   make firmware            deps, then PlatformIO
@@ -13,7 +14,8 @@
 #   make distclean           also remove the fetched driver
 #
 # Sources are globbed, so a new .c under src/ joins the preview without editing
-# this file. Anything it needs from the ESP-IDF gets a stub in tools/host.
+# this file, and a new .c under tests/ becomes a test program that make check
+# runs. Anything they need from the ESP-IDF gets a stub in tools/host.
 #
 # Building the shared rendering sources here with -Wall -Wextra also gives them
 # a warning pass that the PlatformIO build does not.
@@ -27,9 +29,17 @@ BUILD := build
 PREVIEW := $(BUILD)/preview
 FONT_GENERATOR := $(BUILD)/make_fonts
 
-SOURCES := tools/host/preview.c tools/host/gif.c $(wildcard src/*.c) $(wildcard src/generated/*.c)
-OBJECTS := $(SOURCES:%.c=$(BUILD)/%.o)
-DEPENDENCIES := $(OBJECTS:.o=.d) $(BUILD)/tools/make_fonts.d
+# The rendering sources are shared; each host program adds its own file and
+# its own adapters for the hardware it stands in for. Every tests/*.c is one
+# test program with its own main; its exit status is its verdict.
+SHARED_SOURCES := $(wildcard src/*.c) $(wildcard src/generated/*.c) tools/host/adapters.c
+SHARED_OBJECTS := $(SHARED_SOURCES:%.c=$(BUILD)/%.o)
+PREVIEW_SOURCES := tools/host/preview.c tools/host/gif.c
+PREVIEW_OBJECTS := $(PREVIEW_SOURCES:%.c=$(BUILD)/%.o) $(SHARED_OBJECTS)
+TEST_SOURCES := $(wildcard tests/*.c)
+TEST_OBJECTS := $(TEST_SOURCES:%.c=$(BUILD)/%.o)
+TEST_PROGRAMS := $(TEST_SOURCES:tests/%.c=$(BUILD)/tests/%)
+DEPENDENCIES := $(PREVIEW_OBJECTS:.o=.d) $(TEST_OBJECTS:.o=.d) $(BUILD)/tools/make_fonts.d
 
 # The ST77916 panel driver is fetched rather than committed, so nothing under
 # $(ST77916_DIR) is in git.
@@ -72,15 +82,26 @@ REVEAL_GIF ?= reveal.gif
 BOOT_GIF ?= boot.gif
 MENU_GIF ?= menu.gif
 
-.PHONY: all preview reveal boot menu fonts deps firmware upload monitor clean distclean
+.PHONY: all preview check reveal boot menu fonts deps firmware upload monitor clean distclean
+
+# Test objects are reached through a pattern rule chain, and make would delete
+# them as intermediates after every run, rebuilding them the next time.
+.SECONDARY: $(TEST_OBJECTS)
 
 all: preview
 
 preview: $(PREVIEW)
 
-$(PREVIEW): $(OBJECTS)
+$(PREVIEW): $(PREVIEW_OBJECTS)
 	@mkdir -p $(@D)
 	$(CC) $(CFLAGS) $^ $(LDLIBS) -o $@
+
+$(BUILD)/tests/%: $(BUILD)/tests/%.o $(SHARED_OBJECTS)
+	@mkdir -p $(@D)
+	$(CC) $(CFLAGS) $^ $(LDLIBS) -o $@
+
+check: $(TEST_PROGRAMS)
+	@for program in $(TEST_PROGRAMS); do echo "$$program"; $$program || exit 1; done
 
 $(FONT_GENERATOR): $(BUILD)/tools/make_fonts.o
 	@mkdir -p $(@D)

@@ -9,14 +9,15 @@
 #include "haptics.h"
 #include "theme.h"
 
-#define WORDMARK "PYTHIA//"
+const char BOOT_WORDMARK[] = "PYTHIA//";
 #define WORDMARK_LENGTH 8
-#define MANUFACTURER "DELPHI SYSTEMS"
 
-// Glyphs a position cycles through before it settles. Every one of these must
-// be in BOOT_WORDMARK_CHARACTERS in tools/make_fonts.c.
-static const char SCRAMBLE_CHARACTERS[] = "0123456789ABCDEFXZ#%&/";
-#define SCRAMBLE_COUNT ((uint32_t)(sizeof(SCRAMBLE_CHARACTERS) - 1))
+const char BOOT_MANUFACTURER[] = "DELPHI SYSTEMS";
+
+// Every one of these must be in BOOT_WORDMARK_CHARACTERS in
+// tools/make_fonts.c; tests/glyphs.c holds the font to it.
+const char BOOT_SCRAMBLE_CHARACTERS[] = "0123456789ABCDEFXZ#%&/";
+#define SCRAMBLE_COUNT ((uint32_t)(sizeof(BOOT_SCRAMBLE_CHARACTERS) - 1))
 
 #define WORDMARK_BASELINE 198
 #define RULE_Y 216.0f
@@ -38,23 +39,31 @@ static const char SCRAMBLE_CHARACTERS[] = "0123456789ABCDEFXZ#%&/";
 // Timeline, in milliseconds from boot_begin.
 #define SPIN_PERIOD_MS 900 // one revolution of the comet once up to speed
 #define SPIN_RAMP_MS 500   // accelerating from rest
+
 #define RING_CLOSE_START_MS 1900
 #define RING_CLOSE_MS 350 // the tail grows until the ring is whole
 #define RING_SETTLE_MS 700 // the whole ring crossfades to its resting colour
+
 #define TYPE_START_MS 850
 #define TYPE_STEP_MS 170
+
 #define SCRAMBLE_LEAD 2 // positions shown scrambling ahead of the one settling
 #define SCRAMBLE_STEP_MS 55
+
 #define GLITCH_START_MS 2250
 #define GLITCH_MS 220
 #define GLITCH_STEP_MS 40
 #define GLITCH_BANDS 4
+
 #define RULE_START_MS 2250
 #define RULE_MS 450
+
 #define CAPTION_START_MS 2550
 #define CAPTION_MS 700
+
 #define FADE_START_MS 4300
 #define FADE_MS 600
+
 #define BOOT_TOTAL_MS (FADE_START_MS + FADE_MS)
 
 // The ring closes as the glitch strikes, so one double click marks both.
@@ -117,7 +126,7 @@ void boot_begin(uint32_t now) {
     glitch_thumped = false;
     glyphs_ticked = 0;
 
-    wordmark_width = font_text_width(&font_boot_wordmark, WORDMARK);
+    wordmark_width = font_text_width(&font_boot_wordmark, BOOT_WORDMARK);
     wordmark_left = (CANVAS_WIDTH - wordmark_width) / 2;
     wordmark_advance = wordmark_width / WORDMARK_LENGTH;
 }
@@ -199,11 +208,11 @@ static void draw_wordmark(const theme_t *theme, uint32_t elapsed, uint8_t alpha)
             position < SCRAMBLE_LEAD || elapsed >= settle_ms((uint8_t)(position - SCRAMBLE_LEAD));
 
         if (settled) {
-            glyph[0] = WORDMARK[position];
+            glyph[0] = BOOT_WORDMARK[position];
             canvas_text(&font_boot_wordmark, glyph, pen_x, WORDMARK_BASELINE, theme->answer,
                         alpha);
         } else if (reached && elapsed >= TYPE_START_MS - TYPE_STEP_MS) {
-            glyph[0] = SCRAMBLE_CHARACTERS[hash(position, scramble_step) % SCRAMBLE_COUNT];
+            glyph[0] = BOOT_SCRAMBLE_CHARACTERS[hash(position, scramble_step) % SCRAMBLE_COUNT];
             canvas_text(&font_boot_wordmark, glyph, pen_x, WORDMARK_BASELINE, theme->label,
                         alpha);
         }
@@ -251,7 +260,7 @@ static void draw_caption(const theme_t *theme, uint32_t elapsed, uint8_t alpha) 
     }
 
     const float progress = clamp_unit((float)(elapsed - CAPTION_START_MS) / (float)CAPTION_MS);
-    canvas_text_arc(&font_boot_caption, MANUFACTURER, CANVAS_WIDTH / 2.0f, CANVAS_HEIGHT / 2.0f,
+    canvas_text_arc(&font_boot_caption, BOOT_MANUFACTURER, CANVAS_WIDTH / 2.0f, CANVAS_HEIGHT / 2.0f,
                     CAPTION_RADIUS, CAPTION_ANGLE, CAPTION_TRACKING, theme->label,
                     scale_alpha(alpha, progress));
 }

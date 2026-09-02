@@ -163,3 +163,7 @@ void reveal_draw_caption(const char *text, uint8_t alpha) {
 bool reveal_is_animating(uint32_t now) {
     return (now - started_ms) < REVEAL_TOTAL_MS;
 }
+
+bool reveal_is_concealed(uint32_t now) {
+    return (now - started_ms) < BEAT_TWO_MS;
+}
