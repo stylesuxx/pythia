@@ -8,7 +8,7 @@
 
 #include "boot.h"
 #include "canvas.h"
-#include "menu.h"
+#include "mode.h"
 #include "oracle.h"
 #include "reveal.h"
 #include "settings.h"
@@ -24,10 +24,12 @@
 // Time the finished reveal stays on screen before the GIF loops.
 #define REVEAL_END_HOLD_MS 3000
 
-// How long each die is held while stepping through the list, and the fade the
-// firmware runs when the list first appears out of the dark.
+// The list render: a pause on the armed screen, one click per die around the
+// whole list, then long enough for the choice to settle back into the armed
+// screen.
+#define MENU_LEAD_MS 400
 #define MENU_STEP_MS 460
-#define MENU_FADE_IN_MS 180
+#define MENU_SETTLE_MS 1700
 
 // Colour shown around the round panel, standing in for the bezel.
 #define SURROUND_RGB565 0x18C3
@@ -116,26 +118,43 @@ static int render_boot(gif_writer_t *gif) {
     return frames;
 }
 
-// One full turn of the knob: every die in the list, once, so the ring highlight
-// travels the whole way round. Only the first entry fades in; the firmware
-// swaps instantly between entries once the list is already lit.
+// One full turn of the knob, driven through the mode machine so the GIF shows
+// the firmware's own transitions: boot is stepped through unrecorded, then the
+// armed screen, one click per die around the whole list, and the second of
+// stillness that settles the choice back into the armed screen.
 static int render_menu(gif_writer_t *gif) {
-    int frames = 0;
-
+    const mode_input_t nothing = {0, false};
+    uint8_t oracle = 0;
     for (uint8_t index = 0; index < DIE_COUNT; index++) {
-        for (uint32_t elapsed = 0; elapsed < MENU_STEP_MS; elapsed += FRAME_INTERVAL_MS) {
-            uint8_t alpha = 255;
-            if (index == 0 && elapsed < MENU_FADE_IN_MS) {
-                alpha = (uint8_t)(255u * elapsed / MENU_FADE_IN_MS);
-            }
-
-            canvas_fill(theme_active()->background);
-            menu_draw(index, alpha);
-            if (!encode_frame(gif)) {
-                return -1;
-            }
-            frames++;
+        if (DICE[index].kind == DIE_ORACLE) {
+            oracle = index;
         }
+    }
+
+    mode_begin(0, oracle);
+    uint32_t now = 0;
+    while (mode_current() == MODE_BOOT) {
+        mode_step(now, nothing);
+        now += FRAME_INTERVAL_MS;
+    }
+
+    uint32_t next_click = now + MENU_LEAD_MS;
+    const uint32_t last_click = next_click + (uint32_t)(DIE_COUNT - 1) * MENU_STEP_MS;
+    const uint32_t end = last_click + MENU_SETTLE_MS;
+    int frames = 0;
+    for (; now <= end; now += FRAME_INTERVAL_MS) {
+        mode_input_t input = nothing;
+        if (now >= next_click && next_click <= last_click) {
+            input.detents = 1;
+            next_click += MENU_STEP_MS;
+        }
+
+        mode_step(now, input);
+        if (!encode_frame(gif)) {
+            return -1;
+        }
+
+        frames++;
     }
 
     return frames;

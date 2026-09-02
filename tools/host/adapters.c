@@ -8,6 +8,7 @@
 
 #include "esp_random.h"
 #include "haptics.h"
+#include "settings.h"
 
 __attribute__((weak)) uint32_t esp_random(void) {
     return ((uint32_t)rand() << 17) ^ ((uint32_t)rand() << 6) ^ (uint32_t)rand();
@@ -17,4 +18,8 @@ __attribute__((weak)) void haptics_begin(void) {}
 
 __attribute__((weak)) void haptics_play(uint8_t effect) {
     (void)effect;
+}
+
+__attribute__((weak)) void settings_set_die_index(uint8_t index) {
+    (void)index;
 }
