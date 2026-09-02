@@ -25,19 +25,19 @@ static int failures = 0;
     } while (0)
 
 static int draws = 0;
-static frame_rows_t drawn_rows = {0, 0};
+static frame_rect_t drawn_rows = {0, 0, 0, 0};
 
-static void record_draw(void *context, frame_rows_t rows) {
+static void record_draw(void *context, frame_rect_t rows) {
     (void)context;
     draws++;
     drawn_rows = rows;
 }
 
-static frame_rows_t render(uint32_t now) {
+static frame_rect_t render(uint32_t now) {
     return frame_render(now, BACKGROUND, record_draw, NULL);
 }
 
-static bool same(frame_rows_t a, int top, int height) {
+static bool same(frame_rect_t a, int top, int height) {
     return a.top == top && a.height == height;
 }
 
@@ -67,7 +67,7 @@ static void reset(uint32_t now) {
 
 static void check_nothing_marked_draws_nothing(void) {
     reset(0);
-    const frame_rows_t rows = render(0);
+    const frame_rect_t rows = render(0);
 
     EXPECT(rows.height == 0, "an unmarked frame presented %d rows", rows.height);
     EXPECT(draws == 0, "an unmarked frame called draw");
@@ -76,48 +76,48 @@ static void check_nothing_marked_draws_nothing(void) {
 
 static void check_marked_rows_are_filled_drawn_and_forgotten(void) {
     reset(0);
-    frame_mark((frame_rows_t){100, 20});
-    const frame_rows_t rows = render(0);
+    frame_mark((frame_rect_t){100, 20, 0, CANVAS_WIDTH});
+    const frame_rect_t rows = render(0);
 
     EXPECT(same(rows, 100, 20), "marked 100+20, presented %d+%d", rows.top, rows.height);
     EXPECT(draws == 1 && same(drawn_rows, 100, 20), "draw saw %d+%d", drawn_rows.top,
            drawn_rows.height);
     EXPECT(filled_exactly(100, 20), "the fill did not cover exactly the marked rows");
 
-    const frame_rows_t again = render(100);
+    const frame_rect_t again = render(100);
     EXPECT(again.height == 0 && draws == 1, "the marks survived the frame that drew them");
 }
 
 static void check_marks_union(void) {
     reset(0);
-    frame_mark((frame_rows_t){200, 5});
-    frame_mark((frame_rows_t){50, 10});
-    const frame_rows_t rows = render(0);
+    frame_mark((frame_rect_t){200, 5, 0, CANVAS_WIDTH});
+    frame_mark((frame_rect_t){50, 10, 0, CANVAS_WIDTH});
+    const frame_rect_t rows = render(0);
 
     EXPECT(same(rows, 50, 155), "50+10 and 200+5 presented as %d+%d", rows.top, rows.height);
 
-    frame_mark((frame_rows_t){10, 10});
+    frame_mark((frame_rect_t){10, 10, 0, CANVAS_WIDTH});
     frame_mark_whole();
-    const frame_rows_t whole = render(100);
+    const frame_rect_t whole = render(100);
 
     EXPECT(same(whole, 0, CANVAS_HEIGHT), "whole presented as %d+%d", whole.top, whole.height);
 }
 
 static void check_rows_are_clamped(void) {
     reset(0);
-    frame_mark((frame_rows_t){-10, 30});
-    frame_rows_t rows = render(0);
+    frame_mark((frame_rect_t){-10, 30, 0, CANVAS_WIDTH});
+    frame_rect_t rows = render(0);
 
     EXPECT(same(rows, 0, 20), "-10+30 presented as %d+%d", rows.top, rows.height);
 
-    frame_mark((frame_rows_t){350, 30});
+    frame_mark((frame_rect_t){350, 30, 0, CANVAS_WIDTH});
     rows = render(100);
 
     EXPECT(same(rows, 350, 10), "350+30 presented as %d+%d", rows.top, rows.height);
 
-    frame_mark((frame_rows_t){10, 0});
-    frame_mark((frame_rows_t){400, 5});
-    frame_mark((frame_rows_t){20, -4});
+    frame_mark((frame_rect_t){10, 0, 0, CANVAS_WIDTH});
+    frame_mark((frame_rect_t){400, 5, 0, CANVAS_WIDTH});
+    frame_mark((frame_rect_t){20, -4, 0, CANVAS_WIDTH});
     rows = render(200);
 
     EXPECT(rows.height == 0, "empty and off-canvas marks presented %d+%d", rows.top, rows.height);
@@ -125,18 +125,18 @@ static void check_rows_are_clamped(void) {
 
 static void check_frames_are_paced(void) {
     reset(1000);
-    frame_mark((frame_rows_t){0, 10});
+    frame_mark((frame_rect_t){0, 10, 0, CANVAS_WIDTH});
 
     EXPECT(render(1000).height == 10, "the first frame after begin waited");
 
-    frame_mark((frame_rows_t){100, 10});
+    frame_mark((frame_rect_t){100, 10, 0, CANVAS_WIDTH});
 
     EXPECT(render(1002).height == 0, "a frame ran 2 ms after the last");
     EXPECT(render(1010).height == 0, "a frame ran 10 ms after the last");
     EXPECT(draws == 1, "pacing called draw %d times", draws);
 
-    frame_mark((frame_rows_t){200, 10});
-    const frame_rows_t rows = render(1016);
+    frame_mark((frame_rect_t){200, 10, 0, CANVAS_WIDTH});
+    const frame_rect_t rows = render(1016);
 
     EXPECT(same(rows, 100, 110), "the marks kept while paced presented as %d+%d", rows.top,
            rows.height);

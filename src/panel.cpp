@@ -92,35 +92,37 @@ bool panel_begin(void) {
 }
 
 void panel_present(const uint16_t *pixels) {
-    panel_present_rows(pixels, 0, CANVAS_HEIGHT);
+    panel_present_rect(pixels, 0, CANVAS_HEIGHT, 0, CANVAS_WIDTH);
 }
 
-// Converts one band to panel byte order, two pixels per word. Rotated, the
-// band is read backwards and every word's pixel pair swaps too, which is
-// exactly a 32-bit byte reversal.
-static void convert_band(uint16_t *destination, const uint16_t *source, size_t pixels,
-                         bool rotated) {
-    const uint32_t *from = (const uint32_t *)source;
-    uint32_t *to = (uint32_t *)destination;
-    const size_t words = pixels / 2;
+// Copies a rectangle out of the canvas into a DMA band, in the panel's byte
+// order. Half a turn is the same rectangle read backwards, which lands it on
+// the mirrored rows and columns.
+static void convert_rect(uint16_t *destination, const uint16_t *pixels, int top, int rows,
+                         int left, int span, bool rotated) {
+    for (int row = 0; row < rows; row++) {
+        const int source_row = rotated ? (top + rows - 1 - row) : (top + row);
+        const uint16_t *source = pixels + (size_t)source_row * CANVAS_WIDTH + left;
+        uint16_t *target = destination + (size_t)row * span;
 
-    if (rotated) {
-        for (size_t i = 0; i < words; i++) {
-            to[i] = __builtin_bswap32(from[words - 1 - i]);
+        if (rotated) {
+            for (int column = 0; column < span; column++) {
+                target[column] = __builtin_bswap16(source[span - 1 - column]);
+            }
+        } else {
+            for (int column = 0; column < span; column++) {
+                target[column] = __builtin_bswap16(source[column]);
+            }
         }
-
-        return;
-    }
-
-    for (size_t i = 0; i < words; i++) {
-        const uint32_t word = from[i];
-        to[i] = ((word & 0x00FF00FFu) << 8) | ((word >> 8) & 0x00FF00FFu);
     }
 }
 
-void panel_present_rows(const uint16_t *pixels, int top, int height) {
+void panel_present_rect(const uint16_t *pixels, int top, int height, int left, int width) {
     int first = top & ~1;
     int last = (top + height + 1) & ~1;
+    int from = left & ~1;
+    int to = (left + width + 1) & ~1;
+
     if (first < 0) {
         first = 0;
     }
@@ -129,24 +131,38 @@ void panel_present_rows(const uint16_t *pixels, int top, int height) {
         last = CANVAS_HEIGHT;
     }
 
-    const bool rotated = settings_is_display_rotated();
+    if (from < 0) {
+        from = 0;
+    }
 
-    // A buffer is reused only once the transfer that last used it has
-    // finished, which the driver reports through band_sent in order.
+    if (to > CANVAS_WIDTH) {
+        to = CANVAS_WIDTH;
+    }
+
+    if (first >= last || from >= to) {
+        return;
+    }
+
+    const int span = to - from;
+    const bool rotated = settings_is_display_rotated();
+    // Bands are sized in whole rows of the full canvas, so a narrower rectangle
+    // simply fits more of its rows into one.
+    const int band_rows = (CANVAS_WIDTH * PANEL_BAND_LINES) / span;
+
     int sent = 0;
-    for (int row = first; row < last; row += PANEL_BAND_LINES) {
-        const int lines = (row + PANEL_BAND_LINES <= last) ? PANEL_BAND_LINES : (last - row);
-        const uint16_t *source = pixels + (size_t)row * CANVAS_WIDTH;
-        const size_t count = (size_t)CANVAS_WIDTH * lines;
+    for (int row = first; row < last; row += band_rows) {
+        const int rows = (row + band_rows <= last) ? band_rows : (last - row);
         uint16_t *band = bands[sent % PANEL_BAND_COUNT];
 
         if (sent >= PANEL_BAND_COUNT) {
             xSemaphoreTake(band_sent, portMAX_DELAY);
         }
-        convert_band(band, source, count, rotated);
+        convert_rect(band, pixels, row, rows, from, span, rotated);
 
-        const int top_row = rotated ? (CANVAS_HEIGHT - row - lines) : row;
-        esp_lcd_panel_draw_bitmap(panel, 0, top_row, CANVAS_WIDTH, top_row + lines, band);
+        const int top_row = rotated ? (CANVAS_HEIGHT - row - rows) : row;
+        const int left_column = rotated ? (CANVAS_WIDTH - to) : from;
+        esp_lcd_panel_draw_bitmap(panel, left_column, top_row, left_column + span,
+                                  top_row + rows, band);
 
         sent++;
     }

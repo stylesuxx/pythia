@@ -4,6 +4,7 @@
 
 #include "boot.h"
 #include "canvas.h"
+#include "coin.h"
 #include "frame.h"
 #include "haptics.h"
 #include "menu.h"
@@ -149,8 +150,25 @@ static void power_wake(uint32_t now) {
     power = POWER_LIGHTING;
 }
 
+// A coin die is only thrown as a coin while the setting allows it; switched
+// off, D2 prints its number through the reveal like every other die.
+static bool die_is_coin(void) {
+    return DICE[selected].kind == DIE_COIN && settings_is_coin_enabled();
+}
+
 static void roll_and_reveal(uint32_t now) {
     const roll_t roll = roll_die(&DICE[selected]);
+
+    if (die_is_coin()) {
+        // A two sided die only ever answers "1" or "2".
+        coin_flip((uint8_t)(roll.answer[0] - '0'), now);
+        mode = MODE_RESULT;
+        start_fade(255.0f, 255.0f, 0, now);
+        frame_mark_whole();
+
+        return;
+    }
+
     reveal_begin(&roll, now);
     mode = MODE_RESULT;
     start_fade(255.0f, 255.0f, 0, now);
@@ -197,6 +215,14 @@ static void handle_tap(uint32_t now) {
         } break;
 
         case MODE_RESULT: {
+            // The coin is already on screen and already the result, so asking
+            // again just sets it spinning. Fading it out and back would put a
+            // blink between two states that are the same object.
+            if (die_is_coin()) {
+                roll_and_reveal(now);
+                break;
+            }
+
             start_fade(fade_alpha(now), 0.0f, STAGE_FADE_MS, now);
             pending = PENDING_ROLL;
         } break;
@@ -245,7 +271,7 @@ static void handle_pending(uint32_t now) {
     roll_and_reveal(now);
 }
 
-static void draw_scene(void *context, frame_rows_t rows) {
+static void draw_scene(void *context, frame_rect_t rows) {
     const uint32_t now = *(const uint32_t *)context;
     const uint8_t alpha = fade_alpha(now);
 
@@ -268,7 +294,11 @@ static void draw_scene(void *context, frame_rows_t rows) {
         } break;
 
         case MODE_RESULT: {
-            reveal_draw(now, alpha);
+            if (die_is_coin()) {
+                coin_draw(now, alpha);
+            } else {
+                reveal_draw(now, alpha);
+            }
             caption_alpha = 255;
         } break;
     }
@@ -280,13 +310,18 @@ static void draw_scene(void *context, frame_rows_t rows) {
 
 // Marks what is moving on the current screen, then lets the frame decide
 // whether this instant gets drawn.
-static frame_rows_t render(uint32_t now) {
+static frame_rect_t render(uint32_t now) {
     switch (mode) {
         case MODE_BOOT: {
             frame_mark_whole();
         } break;
 
-        case MODE_CHOOSING:
+        case MODE_CHOOSING: {
+            if (is_fading(now)) {
+                frame_mark_whole();
+            }
+        } break;
+
         case MODE_ARMED: {
             if (is_fading(now)) {
                 frame_mark_whole();
@@ -294,7 +329,11 @@ static frame_rows_t render(uint32_t now) {
         } break;
 
         case MODE_RESULT: {
-            if (is_fading(now) || reveal_is_animating(now)) {
+            if (die_is_coin()) {
+                if (is_fading(now) || (coin_is_animating(now) && display_on)) {
+                    frame_mark(coin_stage());
+                }
+            } else if (is_fading(now) || reveal_is_animating(now)) {
                 frame_mark(reveal_stage());
             }
         } break;
@@ -319,7 +358,7 @@ void mode_begin(uint32_t now, uint8_t die) {
     start_fade(255.0f, 255.0f, 0, now);
 }
 
-frame_rows_t mode_step(uint32_t now, mode_input_t input) {
+frame_rect_t mode_step(uint32_t now, mode_input_t input) {
     // Inputs are drained but ignored until the boot sequence ends, so a turn
     // during boot does not land on a different die afterwards.
     if (mode == MODE_BOOT) {

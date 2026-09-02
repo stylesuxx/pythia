@@ -3,6 +3,7 @@
 // tests/reveal.c records haptics and tests/oracle.c feeds the entropy draws,
 // defines its own and the linker takes that instead.
 
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
 
@@ -22,4 +23,8 @@ __attribute__((weak)) void haptics_play(uint8_t effect) {
 
 __attribute__((weak)) void settings_set_die_index(uint8_t index) {
     (void)index;
+}
+
+__attribute__((weak)) bool settings_is_coin_enabled(void) {
+    return true;
 }

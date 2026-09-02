@@ -8,6 +8,7 @@
 
 #include "boot.h"
 #include "canvas.h"
+#include "coin.h"
 #include "mode.h"
 #include "oracle.h"
 #include "reveal.h"
@@ -160,17 +161,54 @@ static int render_menu(gif_writer_t *gif) {
     return frames;
 }
 
+// One throw: the coin at rest on a face, then tumbling and landing on another.
+static int render_coin(gif_writer_t *gif) {
+    const uint32_t rest_ms = 400;
+    const uint32_t throw_ms = 1800;
+    int frames = 0;
+
+    // A flip long enough ago to have settled is how a resting coin is posed.
+    coin_flip(1, 0);
+    for (uint32_t now = 900; now < 900 + rest_ms; now += FRAME_INTERVAL_MS) {
+        canvas_fill(theme_active()->background);
+        coin_draw(now, 255);
+        reveal_draw_caption("D2", 255);
+        if (!encode_frame(gif)) {
+            return -1;
+        }
+
+        frames++;
+    }
+
+    coin_flip(2, 900 + rest_ms);
+    for (uint32_t now = 900 + rest_ms; now < 900 + rest_ms + throw_ms; now += FRAME_INTERVAL_MS) {
+        canvas_fill(theme_active()->background);
+        coin_draw(now, 255);
+        reveal_draw_caption("D2", 255);
+
+        if (!encode_frame(gif)) {
+            return -1;
+        }
+
+        frames++;
+    }
+
+    return frames;
+}
+
 static void usage(void) {
     fprintf(stderr, "usage: preview reveal <theme> <answer> <modifier|-> <caption> <output.gif>\n");
     fprintf(stderr, "       preview boot <theme> <output.gif>\n");
     fprintf(stderr, "       preview menu <theme> <output.gif>\n");
+    fprintf(stderr, "       preview coin <theme> <output.gif>\n");
 }
 
 int main(int argument_count, char **arguments) {
     const bool boot = argument_count == 4 && strcmp(arguments[1], "boot") == 0;
     const bool menu = argument_count == 4 && strcmp(arguments[1], "menu") == 0;
+    const bool coin = argument_count == 4 && strcmp(arguments[1], "coin") == 0;
     const bool reveal = argument_count == 7 && strcmp(arguments[1], "reveal") == 0;
-    if (!boot && !menu && !reveal) {
+    if (!boot && !menu && !coin && !reveal) {
         usage();
         return 1;
     }
@@ -198,6 +236,8 @@ int main(int argument_count, char **arguments) {
         frames = render_boot(&gif);
     } else if (menu) {
         frames = render_menu(&gif);
+    } else if (coin) {
+        frames = render_coin(&gif);
     } else {
         frames = render_reveal(arguments[3], arguments[4], arguments[5], &gif);
     }

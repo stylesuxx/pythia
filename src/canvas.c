@@ -31,16 +31,18 @@ uint16_t *canvas_pixels(void) {
 }
 
 void canvas_fill(uint16_t color) {
-    canvas_fill_rows(0, CANVAS_HEIGHT, color);
+    canvas_fill_rect(0, CANVAS_HEIGHT, 0, CANVAS_WIDTH, color);
 }
 
-void canvas_fill_rows(int top, int height, uint16_t color) {
-    int first = top < 0 ? 0 : top;
-    int last = top + height > CANVAS_HEIGHT ? CANVAS_HEIGHT : top + height;
+void canvas_fill_rect(int top, int height, int left, int width, uint16_t color) {
+    const int first = top < 0 ? 0 : top;
+    const int last = top + height > CANVAS_HEIGHT ? CANVAS_HEIGHT : top + height;
+    const int from = left < 0 ? 0 : left;
+    const int to = left + width > CANVAS_WIDTH ? CANVAS_WIDTH : left + width;
 
     for (int row = first; row < last; row++) {
         uint16_t *pixel = &framebuffer[(size_t)row * CANVAS_WIDTH];
-        for (int column = 0; column < CANVAS_WIDTH; column++) {
+        for (int column = from; column < to; column++) {
             pixel[column] = color;
         }
     }
@@ -59,9 +61,16 @@ void canvas_blend(int x, int y, uint16_t color, uint8_t alpha) {
 
     const uint16_t behind = *pixel;
     const uint16_t inverse = (uint16_t)(255u - alpha);
-    const uint16_t red = (uint16_t)((((color >> 11) & 0x1Fu) * alpha + ((behind >> 11) & 0x1Fu) * inverse) / 255u);
-    const uint16_t green = (uint16_t)((((color >> 5) & 0x3Fu) * alpha + ((behind >> 5) & 0x3Fu) * inverse) / 255u);
-    const uint16_t blue = (uint16_t)(((color & 0x1Fu) * alpha + (behind & 0x1Fu) * inverse) / 255u);
+
+    // Same exact-divide identity as canvas_scale, on sums that stay under 65025.
+    const uint16_t red_sum = (uint16_t)(((color >> 11) & 0x1Fu) * alpha + ((behind >> 11) & 0x1Fu) * inverse);
+    const uint16_t green_sum = (uint16_t)(((color >> 5) & 0x3Fu) * alpha + ((behind >> 5) & 0x3Fu) * inverse);
+    const uint16_t blue_sum = (uint16_t)((color & 0x1Fu) * alpha + (behind & 0x1Fu) * inverse);
+
+    const uint16_t red = (uint16_t)((red_sum + (red_sum >> 8) + 1) >> 8);
+    const uint16_t green = (uint16_t)((green_sum + (green_sum >> 8) + 1) >> 8);
+    const uint16_t blue = (uint16_t)((blue_sum + (blue_sum >> 8) + 1) >> 8);
+
     *pixel = (uint16_t)((red << 11) | (green << 5) | blue);
 }
 
@@ -113,7 +122,7 @@ void canvas_line(float from_x, float from_y, float to_x, float to_y, float width
                 const uint8_t coverage = capsule_coverage((float)x, (float)y, from_x, from_y,
                                                           span_x, span_y, span_length_squared,
                                                           half_width);
-                canvas_blend(x, y, color, (uint8_t)((uint16_t)coverage * alpha / 255u));
+                canvas_blend(x, y, color, canvas_scale(coverage, alpha));
             }
         }
     } else {
@@ -126,7 +135,7 @@ void canvas_line(float from_x, float from_y, float to_x, float to_y, float width
                 const uint8_t coverage = capsule_coverage((float)x, (float)y, from_x, from_y,
                                                           span_x, span_y, span_length_squared,
                                                           half_width);
-                canvas_blend(x, y, color, (uint8_t)((uint16_t)coverage * alpha / 255u));
+                canvas_blend(x, y, color, canvas_scale(coverage, alpha));
             }
         }
     }
@@ -241,7 +250,7 @@ void canvas_text(const font_t *font, const char *text, int left_x, int baseline_
             for (int column = 0; column < glyph->width; column++) {
                 const uint8_t coverage = font_coverage_at(font, glyph, column, row);
                 canvas_blend(origin_x + column, origin_y + row, color,
-                             (uint8_t)((uint16_t)coverage * alpha / 255u));
+                             canvas_scale(coverage, alpha));
             }
         }
 
@@ -290,6 +299,65 @@ static float arc_text_span(const font_t *font, const char *text, float tracking)
     }
 
     return span;
+}
+
+
+void canvas_text_scaled(const font_t *font, const char *text, float centre_x, float baseline_y,
+                        float scale_x, float scale_y, uint16_t color, uint8_t alpha) {
+    // Below this the run is thinner than a pixel and there is nothing to show.
+    if (alpha == 0 || scale_x < 0.015f || scale_y < 0.015f) {
+        return;
+    }
+
+    // Supersampling only earns its keep when the glyph is being minified, and
+    // only along the axis doing the minifying. A face turned square on is the
+    // largest destination and needs none at all, while a face turned away is a
+    // few pixels across and can afford them, so the work stays roughly flat.
+    const float squeeze = scale_x < scale_y ? scale_x : scale_y;
+    const int subsamples = squeeze >= 0.7f ? 1 : (squeeze >= 0.35f ? 2 : 3);
+    const bool along_x = scale_x <= scale_y;
+
+    // The pen walks the unscaled run, measured from its centre, and only the
+    // destination is scaled. That keeps the glyph spacing proportional.
+    float pen = (float)font_text_width(font, text) * -0.5f;
+
+    for (const char *cursor = text; *cursor != '\0'; cursor++) {
+        const glyph_t *glyph = font_find_glyph(font, (uint8_t)*cursor);
+        if (glyph == NULL) {
+            continue;
+        }
+
+        const float glyph_left = pen + (float)glyph->left;
+        const float glyph_top = -(float)glyph->top;
+
+        const int first_x = (int)floorf(centre_x + glyph_left * scale_x) - 1;
+        const int last_x = (int)ceilf(centre_x + (glyph_left + (float)glyph->width) * scale_x) + 1;
+        const int first_y = (int)floorf(baseline_y + glyph_top * scale_y) - 1;
+        const int last_y = (int)ceilf(baseline_y + (glyph_top + (float)glyph->height) * scale_y) + 1;
+
+        for (int y = first_y; y <= last_y; y++) {
+            for (int x = first_x; x <= last_x; x++) {
+                float coverage = 0.0f;
+                for (int sub = 0; sub < subsamples; sub++) {
+                    const float shift = -0.5f + (0.5f + (float)sub) / (float)subsamples;
+                    const float sample_x = along_x ? (float)x + shift : (float)x;
+                    const float sample_y = along_x ? (float)y : (float)y + shift;
+
+                    const float source_x = (sample_x - centre_x) / scale_x - glyph_left;
+                    const float source_y = (sample_y - baseline_y) / scale_y - glyph_top;
+
+                    coverage += sample_coverage(font, glyph, source_x, source_y);
+                }
+
+                coverage /= (float)subsamples;
+                if (coverage > 0.5f) {
+                    canvas_blend(x, y, color, canvas_scale((uint8_t)coverage, alpha));
+                }
+            }
+        }
+
+        pen += (float)glyph->advance;
+    }
 }
 
 void canvas_text_arc(const font_t *font, const char *text, float origin_x, float origin_y,
@@ -347,7 +415,7 @@ void canvas_text_arc(const font_t *font, const char *text, float origin_x, float
                                                        glyph_x - (float)glyph->left,
                                                        glyph_y + (float)glyph->top);
                 if (coverage > 0.5f) {
-                    canvas_blend(x, y, color, (uint8_t)((uint16_t)coverage * alpha / 255u));
+                    canvas_blend(x, y, color, canvas_scale(coverage, alpha));
                 }
             }
         }
@@ -355,3 +423,4 @@ void canvas_text_arc(const font_t *font, const char *text, float origin_x, float
         angle -= ((float)glyph->advance + tracking) / radius;
     }
 }
+

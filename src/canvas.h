@@ -17,6 +17,14 @@ extern "C" {
 #define CANVAS_RGB(red, green, blue) \
     ((uint16_t)((((red) & 0xF8u) << 8) | (((green) & 0xFCu) << 3) | ((blue) >> 3)))
 
+// (a * b) / 255, exactly, without a divide. Integer division is slow enough on
+// this core to dominate a full-screen blend, and this runs several times per
+// pixel.
+static inline uint8_t canvas_scale(uint8_t a, uint8_t b) {
+    const uint16_t product = (uint16_t)a * (uint16_t)b;
+    return (uint8_t)((product + (product >> 8) + 1) >> 8);
+}
+
 // Allocates the framebuffer in PSRAM. Returns false if PSRAM is unavailable.
 bool canvas_begin(void);
 
@@ -24,7 +32,7 @@ uint16_t *canvas_pixels(void);
 
 void canvas_fill(uint16_t color);
 
-void canvas_fill_rows(int top, int height, uint16_t color);
+void canvas_fill_rect(int top, int height, int left, int width, uint16_t color);
 
 void canvas_blend(int x, int y, uint16_t color, uint8_t alpha);
 
@@ -51,6 +59,13 @@ void canvas_shift_rows(int top, int height, int delta_x, uint16_t fill);
 // Draws with the pen starting at left_x, sitting on baseline_y.
 void canvas_text(const font_t *font, const char *text, int left_x, int baseline_y,
                  uint16_t color, uint8_t alpha);
+
+// Draws text centred on a point, scaled independently on each axis: 1 is
+// unscaled, 0 is edge on. Sampling is bilinear, and supersampled along
+// whichever axis is being minified, so a face turning away narrows smoothly
+// instead of aliasing.
+void canvas_text_scaled(const font_t *font, const char *text, float centre_x, float baseline_y,
+                        float scale_x, float scale_y, uint16_t color, uint8_t alpha);
 
 // Draws along a circle, each glyph rotated so its baseline stays tangent. The
 // run is centred on centre_angle, measured in radians clockwise from the

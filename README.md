@@ -47,13 +47,18 @@ Every animation below is rendered by the host preview from the same code the ter
 <td align="center"><img src="resources/d100.gif" width="330" alt="A D100 roll landing on 87"><br /><b>D100 roll</b></td>
 <td align="center"><img src="resources/reveal.gif" width="330" alt="An oracle consultation answering YES, AND"><br /><b>Oracle</b></td>
 </tr>
+<tr>
+<td align="center"><img src="resources/coin.gif" width="330" alt="The D2 coin tumbling and landing on a face"><br /><b>D2 coin</b></td>
+<td></td>
+</tr>
 </table>
 
 ## 5. Divination modes
 
 | Mode | Result |
 |---|---|
-| D2, D4, D6, D8, D10, D12, D20, D100 | One face, 1 through N |
+| D2 | A coin, tumbled and landed on the face it rolled |
+| D4, D6, D8, D10, D12, D20, D100 | One face, 1 through N |
 | D66 | Two independent d6, read as tens and units |
 | ORACLE | YES or NO, with an optional AND or BUT |
 

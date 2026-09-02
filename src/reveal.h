@@ -15,7 +15,7 @@ void reveal_begin(const roll_t *roll, uint32_t now);
 // The rows reveal_draw() draws into, so a frame can repaint just that band.
 // It stops above the rim caption, which is why a roll never disturbs it;
 // tests/reveal.c holds both promises.
-frame_rows_t reveal_stage(void);
+frame_rect_t reveal_stage(void);
 
 // Die name curved along the bottom rim. This is persistent chrome: it is drawn
 // only on whole-screen frames and a roll's band never reaches it, so it holds

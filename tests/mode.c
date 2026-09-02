@@ -8,6 +8,7 @@
 #include <string.h>
 
 #include "canvas.h"
+#include "coin.h"
 #include "haptics.h"
 #include "mode.h"
 #include "oracle.h"
@@ -43,6 +44,12 @@ void settings_set_die_index(uint8_t index) {
     persisted_die = index;
 }
 
+static bool coin_setting = true;
+
+bool settings_is_coin_enabled(void) {
+    return coin_setting;
+}
+
 static void reset_recording(void) {
     memset(haptic_counts, 0, sizeof(haptic_counts));
     persist_calls = 0;
@@ -50,23 +57,23 @@ static void reset_recording(void) {
 
 static const mode_input_t NOTHING = {0, false};
 
-static frame_rows_t step(uint32_t now, int32_t detents, bool tap) {
+static frame_rect_t step(uint32_t now, int32_t detents, bool tap) {
     const mode_input_t input = {detents, tap};
     return mode_step(now, input);
 }
 
-static bool is_whole(frame_rows_t rows) {
+static bool is_whole(frame_rect_t rows) {
     return rows.top == 0 && rows.height == CANVAS_HEIGHT;
 }
 
-static bool is_stage(frame_rows_t rows) {
-    const frame_rows_t stage = reveal_stage();
+static bool is_stage(frame_rect_t rows) {
+    const frame_rect_t stage = reveal_stage();
     return rows.top == stage.top && rows.height == stage.height;
 }
 
 // A frame may wait for the interval since the last one, so a change asked
 // for now is allowed to arrive within that window.
-static bool whole_frame_within(uint32_t now, frame_rows_t rows, uint32_t window) {
+static bool whole_frame_within(uint32_t now, frame_rect_t rows, uint32_t window) {
     bool whole = is_whole(rows);
     for (uint32_t later = now + STEP_MS; !whole && later <= now + window; later += STEP_MS) {
         whole = is_whole(mode_step(later, NOTHING));
@@ -97,7 +104,7 @@ static uint32_t boot_on(uint8_t die) {
     uint32_t handover = 0;
     for (uint32_t now = 0; now <= BOOT_LIMIT_MS; now += STEP_MS) {
         const bool poke = now == 1000 || now == 2500;
-        const frame_rows_t rows = step(now, poke ? 3 : 0, poke);
+        const frame_rect_t rows = step(now, poke ? 3 : 0, poke);
         if (mode_current() != MODE_BOOT) {
             handover = now;
             EXPECT(whole_frame_within(now, rows, 16),
@@ -125,7 +132,7 @@ static void check_turning_browses_the_list(void) {
     uint32_t now = boot_on(3) + 500;
     reset_recording();
 
-    const frame_rows_t rows = step(now, 1, false);
+    const frame_rect_t rows = step(now, 1, false);
     EXPECT(mode_current() == MODE_CHOOSING, "a click did not open the list");
     EXPECT(mode_selected_die() == 4, "one click clockwise landed on %u", (unsigned)mode_selected_die());
     EXPECT(is_whole(rows), "opening the list presented %d+%d", rows.top, rows.height);
@@ -190,7 +197,7 @@ static void check_tap_when_armed_rolls(void) {
     const uint32_t now = boot_on(5) + 500;
     reset_recording();
 
-    const frame_rows_t rows = step(now, 0, true);
+    const frame_rect_t rows = step(now, 0, true);
     EXPECT(mode_current() == MODE_RESULT, "a tap when armed did not roll");
     EXPECT(is_whole(rows), "the roll presented %d+%d", rows.top, rows.height);
     EXPECT(persist_calls == 0, "rolling persisted the die");
@@ -219,6 +226,48 @@ static void check_tap_on_a_result_rolls_again(void) {
     EXPECT(mode_current() == MODE_RESULT, "the second roll did not stay on the result");
 }
 
+// D2 is thrown as a coin unless the setting turns that off, in which case it
+// prints a number like every other die. The two draw different stages, so the
+// rows a roll asks for say which one ran.
+static void check_the_coin_can_be_switched_off(void) {
+    uint8_t coin_die = 0;
+    for (uint8_t index = 0; index < DIE_COUNT; index++) {
+        if (DICE[index].kind == DIE_COIN) {
+            coin_die = index;
+        }
+    }
+
+    const frame_rect_t thrown = coin_stage();
+    const frame_rect_t printed = reveal_stage();
+    EXPECT(thrown.top != printed.top, "the coin and the reveal claim the same stage");
+
+    for (int enabled = 1; enabled >= 0; enabled--) {
+        coin_setting = enabled != 0;
+        const char *state = enabled ? "on" : "off";
+
+        const uint32_t now = boot_on(coin_die) + 500;
+        step(now, 0, true);
+        EXPECT(mode_current() == MODE_RESULT, "a tap on the coin die did not roll");
+
+        const frame_rect_t wanted = enabled ? thrown : printed;
+        bool matched = false;
+        for (uint32_t later = now + STEP_MS; later <= now + 300; later += STEP_MS) {
+            const frame_rect_t rows = mode_step(later, NOTHING);
+            if (rows.height == 0) {
+                continue;
+            }
+
+            matched = rows.top == wanted.top && rows.height == wanted.height;
+            break;
+        }
+
+        EXPECT(matched, "with the coin %s the roll did not animate stage %d+%d", state,
+               wanted.top, wanted.height);
+    }
+
+    coin_setting = true;
+}
+
 static void check_turning_leaves_a_result(void) {
     const uint32_t now = boot_on(5) + 500;
     step(now, 0, true);
@@ -244,7 +293,7 @@ static void check_frames_are_paced(void) {
     int stage = 0;
     int other = 0;
     for (uint32_t later = now + 500 + STEP_MS; later <= now + 500 + 320; later += STEP_MS) {
-        const frame_rows_t rows = mode_step(later, NOTHING);
+        const frame_rect_t rows = mode_step(later, NOTHING);
         if (rows.height == 0) {
             continue;
         }
@@ -373,6 +422,7 @@ int main(void) {
     check_tap_on_the_list_rolls_at_once();
     check_tap_when_armed_rolls();
     check_tap_on_a_result_rolls_again();
+    check_the_coin_can_be_switched_off();
     check_turning_leaves_a_result();
     check_frames_are_paced();
     check_idle_dims_then_sleeps();

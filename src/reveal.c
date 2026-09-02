@@ -164,8 +164,8 @@ void reveal_draw_caption(const char *text, uint8_t alpha) {
                     CAPTION_RADIUS, CAPTION_ANGLE, CAPTION_TRACKING, theme->label, alpha);
 }
 
-frame_rows_t reveal_stage(void) {
-    return (frame_rows_t){STAGE_TOP, STAGE_HEIGHT};
+frame_rect_t reveal_stage(void) {
+    return (frame_rect_t){STAGE_TOP, STAGE_HEIGHT, 0, CANVAS_WIDTH};
 }
 
 bool reveal_is_animating(uint32_t now) {

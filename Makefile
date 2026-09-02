@@ -5,6 +5,7 @@
 #   make reveal ANSWER=NO MODIFIER=- THEME=parchment
 #   make boot                render the power-on sequence to boot.gif
 #   make menu                render one full turn through the die list to menu.gif
+#   make coin                render the D2 coin turning and flipping to coin.gif
 #   make check               build and run every test program under tests/
 #   make fonts               regenerate src/generated from the DejaVu faces
 #   make deps                fetch the third-party sources (none are committed)
@@ -83,6 +84,7 @@ CAPTION ?= ORACLE
 REVEAL_GIF ?= reveal.gif
 BOOT_GIF ?= boot.gif
 MENU_GIF ?= menu.gif
+COIN_GIF ?= coin.gif
 
 # The release image is the four parts `pio run -t upload` writes, laid out at
 # their flash offsets, so a web flasher writes the whole thing at address 0.
@@ -127,6 +129,9 @@ boot: $(PREVIEW)
 
 menu: $(PREVIEW)
 	$(PREVIEW) menu $(THEME) $(MENU_GIF)
+
+coin: $(PREVIEW)
+	$(PREVIEW) coin $(THEME) $(COIN_GIF)
 
 fonts: $(FONT_GENERATOR)
 	$(FONT_GENERATOR) src/generated

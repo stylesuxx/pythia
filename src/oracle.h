@@ -9,6 +9,7 @@ extern "C" {
 
 typedef enum {
     DIE_NUMERIC, // 1 to sides
+    DIE_COIN,    // 1 or 2, shown as a coin rather than a numeral
     DIE_D66,     // two d6 read as tens and units, 11 to 66
     DIE_ORACLE,  // yes or no, sometimes carrying a modifier
 } die_kind_t;

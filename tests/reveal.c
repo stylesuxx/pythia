@@ -249,7 +249,7 @@ static void check_stage_band(const theme_t *theme, const roll_t *roll) {
     for (int column = 0; column < CANVAS_WIDTH; column++) {
         background_row[column] = theme->background;
     }
-    const frame_rows_t stage = reveal_stage();
+    const frame_rect_t stage = reveal_stage();
 
     reveal_begin(roll, 0);
     for (uint32_t now = 0; reveal_is_animating(now); now += STEP_MS) {
@@ -274,7 +274,7 @@ static void check_stage_band(const theme_t *theme, const roll_t *roll) {
 // The rim caption must lie entirely outside the stage, so a band repaint can
 // never touch it. Measured from the widest die name rather than assumed.
 static void check_caption_clears_stage(const theme_t *theme) {
-    const frame_rows_t stage = reveal_stage();
+    const frame_rect_t stage = reveal_stage();
     canvas_fill(theme->background);
     reveal_draw_caption("ORACLE", FRAME_ALPHA);
 

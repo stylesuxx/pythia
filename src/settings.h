@@ -19,6 +19,11 @@ void settings_set_display_rotated(bool rotated);
 bool settings_is_haptics_enabled(void);
 void settings_set_haptics_enabled(bool enabled);
 
+// D2 is thrown as a coin when this is set, and printed as a 1 or a 2 when it
+// is not.
+bool settings_is_coin_enabled(void);
+void settings_set_coin_enabled(bool enabled);
+
 uint8_t settings_theme_index(void);
 void settings_set_theme_index(uint8_t index);
 

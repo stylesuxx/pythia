@@ -27,3 +27,4 @@ lib/esp_lcd_st77916/
 # Fetched by "make deps"; see the Makefile for the pins.
 tools/host/third_party/
 /menu.gif
+/coin.gif

@@ -7,7 +7,7 @@
 #include "esp_random.h"
 
 const die_t DICE[] = {
-    {"D2", DIE_NUMERIC, 2},
+    {"D2", DIE_COIN, 2},
     {"D4", DIE_NUMERIC, 4},
     {"D6", DIE_NUMERIC, 6},
     {"D8", DIE_NUMERIC, 8},

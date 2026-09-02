@@ -42,7 +42,7 @@ void mode_begin(uint32_t now, uint8_t die);
 
 // Advances the machine to now and returns the canvas rows to push, none when
 // nothing changed. Call every loop; frames are paced inside.
-frame_rows_t mode_step(uint32_t now, mode_input_t input);
+frame_rect_t mode_step(uint32_t now, mode_input_t input);
 
 ui_mode_t mode_current(void);
 uint8_t mode_selected_die(void);

@@ -81,9 +81,9 @@ void loop() {
     const uint32_t now = millis();
     const mode_input_t input = {encoder_take_detents(), touch_began(now)};
 
-    const frame_rows_t rows = mode_step(now, input);
+    const frame_rect_t rows = mode_step(now, input);
     if (rows.height > 0) {
-        panel_present_rows(canvas_pixels(), rows.top, rows.height);
+        panel_present_rect(canvas_pixels(), rows.top, rows.height, rows.left, rows.width);
     }
 
     // Screen power. Order matters at the edges: output comes back before the
