@@ -20,11 +20,14 @@
 
 #define TOUCH_DEBOUNCE_MS 250
 
-static bool ready = false;
+// Idle time before the screen goes dark. Overridable from the build flags, so
+// a build that sleeps quickly is a flag rather than an edit:
+// PLATFORMIO_BUILD_FLAGS=-DIDLE_SLEEP_MS=10000
+#ifndef IDLE_SLEEP_MS
+#define IDLE_SLEEP_MS 120000
+#endif
 
-// Last values pushed to the panel, so an unchanged level costs nothing.
-static uint8_t applied_backlight = 255;
-static bool applied_display_on = true;
+static bool ready = false;
 static uint32_t last_touch_ms = 0;
 static bool was_touched = false;
 
@@ -68,7 +71,7 @@ void setup() {
     encoder_begin();
     oracle_begin();
 
-    mode_begin(millis(), settings_die_index());
+    mode_begin(millis(), settings_die_index(), IDLE_SLEEP_MS);
     ready = true;
 }
 
@@ -86,26 +89,7 @@ void loop() {
         panel_present_rect(canvas_pixels(), rows.top, rows.height, rows.left, rows.width);
     }
 
-    // Screen power. Order matters at the edges: output comes back before the
-    // light rises, and goes away only once the light has gone. Nothing is
-    // redrawn either way, because the panel keeps the frame in its own memory.
-    const uint8_t level = mode_backlight();
-    const bool display_on = mode_is_display_on();
-
-    if (display_on && !applied_display_on) {
-        panel_set_display_on(true);
-        applied_display_on = true;
-    }
-
-    if (level != applied_backlight) {
-        panel_set_backlight(level);
-        applied_backlight = level;
-    }
-
-    if (!display_on && applied_display_on) {
-        panel_set_display_on(false);
-        applied_display_on = false;
-    }
+    panel_set_backlight(mode_backlight());
 
     // Every pass polls the touch controller over I2C, so this caps the poll
     // rate at a few hundred a second and yields the core to the encoder's

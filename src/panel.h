@@ -22,11 +22,12 @@ void panel_present(const uint16_t *pixels);
 // in step with the scan and can only be made short enough to cross it quickly.
 void panel_present_rect(const uint16_t *pixels, int top, int height, int left, int width);
 
+// Sets the light level, 0 to 255. The panel's output follows it: enabled
+// before the first lit level and disabled once the level reaches 0, so a dark
+// screen draws nothing. Display memory survives either way, and the last
+// frame is still there when the light comes back. An unchanged level costs
+// nothing.
 void panel_set_backlight(uint8_t level);
-
-// Enables or disables frame buffer output (DISPON / DISPOFF). Display memory
-// survives either way, so the panel still holds the last frame while off.
-void panel_set_display_on(bool on);
 
 #ifdef __cplusplus
 }

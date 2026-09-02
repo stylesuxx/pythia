@@ -132,7 +132,7 @@ static int render_menu(gif_writer_t *gif) {
         }
     }
 
-    mode_begin(0, oracle);
+    mode_begin(0, oracle, 120000);
     uint32_t now = 0;
     while (mode_current() == MODE_BOOT) {
         mode_step(now, nothing);

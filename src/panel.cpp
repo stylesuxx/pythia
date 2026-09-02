@@ -86,7 +86,7 @@ bool panel_begin(void) {
     ESP_ERROR_CHECK(esp_lcd_panel_init(panel));
 
     ledcAttach(PIN_LCD_BL, 50000, 8);
-    panel_set_backlight(0);
+    ledcWrite(PIN_LCD_BL, 0);
 
     return true;
 }
@@ -173,10 +173,26 @@ void panel_present_rect(const uint16_t *pixels, int top, int height, int left, i
     }
 }
 
-void panel_set_display_on(bool on) {
-    esp_lcd_panel_disp_on_off(panel, on);
-}
+// The init table ends with DISPON, so output starts enabled with the light
+// off, which is how panel_begin() leaves things for the first frame.
+static uint8_t applied_level = 0;
+static bool output_enabled = true;
 
 void panel_set_backlight(uint8_t level) {
+    if (level == applied_level) {
+        return;
+    }
+
+    if (level > 0 && !output_enabled) {
+        esp_lcd_panel_disp_on_off(panel, true);
+        output_enabled = true;
+    }
+
     ledcWrite(PIN_LCD_BL, level);
+    applied_level = level;
+
+    if (level == 0 && output_enabled) {
+        esp_lcd_panel_disp_on_off(panel, false);
+        output_enabled = false;
+    }
 }

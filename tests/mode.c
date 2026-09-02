@@ -12,11 +12,16 @@
 #include "haptics.h"
 #include "mode.h"
 #include "oracle.h"
+#include "power.h"
 #include "reveal.h"
 #include "settings.h"
 
 #define STEP_MS 2
 #define BOOT_LIMIT_MS 10000
+
+// The timeout handed to the machine. Short, so the sleep checks run in a
+// moment; the ramps themselves are proven in tests/power.c.
+#define IDLE_SLEEP_MS 5000
 
 static int failures = 0;
 
@@ -98,7 +103,7 @@ static uint32_t step_until(uint32_t from, uint32_t to, ui_mode_t target) {
 // Runs boot with inputs that must be ignored. Returns the instant boot ended.
 static uint32_t boot_on(uint8_t die) {
     reset_recording();
-    mode_begin(0, die);
+    mode_begin(0, die, IDLE_SLEEP_MS);
     EXPECT(mode_current() == MODE_BOOT, "begin does not start in boot");
 
     uint32_t handover = 0;
@@ -314,7 +319,7 @@ static void check_frames_are_paced(void) {
 static uint32_t sleep_from(uint32_t from) {
     for (uint32_t now = from; now <= from + IDLE_SLEEP_MS + 5000; now += STEP_MS) {
         mode_step(now, NOTHING);
-        if (!mode_is_display_on()) {
+        if (power_is_asleep()) {
             return now;
         }
     }
@@ -326,7 +331,7 @@ static void check_idle_dims_then_sleeps(void) {
     const uint32_t armed = boot_on(3);
 
     EXPECT(mode_backlight() == 255, "the armed screen is not at full backlight");
-    EXPECT(mode_is_display_on(), "the armed screen has its output off");
+    EXPECT(!power_is_asleep(), "the armed screen is asleep");
 
     // Well before the timeout nothing has moved.
     mode_step(armed + IDLE_SLEEP_MS / 2, NOTHING);
@@ -339,35 +344,13 @@ static void check_idle_dims_then_sleeps(void) {
     EXPECT(mode_current() == MODE_ARMED, "sleeping changed the mode to %d", (int)mode_current());
 }
 
-static void check_the_dim_is_gradual(void) {
-    const uint32_t armed = boot_on(3);
-
-    // Somewhere in the fade the backlight is neither full nor off, and the
-    // output is still enabled so the picture is still there to be caught.
-    bool partial = false;
-    for (uint32_t now = armed; now <= armed + IDLE_SLEEP_MS + 5000; now += STEP_MS) {
-        mode_step(now, NOTHING);
-        const uint8_t level = mode_backlight();
-        if (level > 0 && level < 255) {
-            partial = true;
-            EXPECT(mode_is_display_on(), "output went off while the backlight was still up");
-        }
-
-        if (!mode_is_display_on()) {
-            break;
-        }
-    }
-
-    EXPECT(partial, "the backlight jumped straight from full to off");
-}
-
 static void check_a_touch_wakes_without_rolling(void) {
     const uint32_t armed = boot_on(3);
     const uint32_t dark = sleep_from(armed);
     reset_recording();
 
     step(dark + 100, 0, true);
-    EXPECT(mode_is_display_on(), "a touch did not switch the output back on");
+    EXPECT(!power_is_asleep(), "a touch did not wake the screen");
     EXPECT(mode_current() == MODE_ARMED, "the waking touch left mode %d, expected armed",
            (int)mode_current());
     EXPECT(haptic_counts[HAPTIC_ANSWER] == 0, "the waking touch rolled");
@@ -383,31 +366,11 @@ static void check_a_turn_wakes_and_is_acted_on(void) {
     reset_recording();
 
     step(dark + 100, 1, false);
-    EXPECT(mode_is_display_on(), "a turn did not switch the output back on");
+    EXPECT(!power_is_asleep(), "a turn did not wake the screen");
     EXPECT(mode_current() == MODE_CHOOSING, "the waking turn left mode %d, expected the list",
            (int)mode_current());
     EXPECT(mode_selected_die() == 4, "the waking turn was swallowed; die is %u",
            (unsigned)mode_selected_die());
-}
-
-static void check_waking_ramps_back_up(void) {
-    const uint32_t armed = boot_on(3);
-    const uint32_t dark = sleep_from(armed);
-
-    step(dark + 100, 0, true);
-    const uint8_t first = mode_backlight();
-    EXPECT(first < 255, "waking jumped straight to full backlight");
-
-    bool full = false;
-    for (uint32_t now = dark + 100; now <= dark + 1000; now += STEP_MS) {
-        mode_step(now, NOTHING);
-        if (mode_backlight() == 255) {
-            full = true;
-            break;
-        }
-    }
-
-    EXPECT(full, "the backlight never came back to full after waking");
 }
 
 int main(void) {
@@ -426,10 +389,8 @@ int main(void) {
     check_turning_leaves_a_result();
     check_frames_are_paced();
     check_idle_dims_then_sleeps();
-    check_the_dim_is_gradual();
     check_a_touch_wakes_without_rolling();
     check_a_turn_wakes_and_is_acted_on();
-    check_waking_ramps_back_up();
 
     if (failures > 0) {
         fprintf(stderr, "mode: %d failure%s\n", failures, failures == 1 ? "" : "s");
