@@ -21,6 +21,10 @@
 #define TOUCH_DEBOUNCE_MS 250
 
 static bool ready = false;
+
+// Last values pushed to the panel, so an unchanged level costs nothing.
+static uint8_t applied_backlight = 255;
+static bool applied_display_on = true;
 static uint32_t last_touch_ms = 0;
 static bool was_touched = false;
 
@@ -80,6 +84,27 @@ void loop() {
     const frame_rows_t rows = mode_step(now, input);
     if (rows.height > 0) {
         panel_present_rows(canvas_pixels(), rows.top, rows.height);
+    }
+
+    // Screen power. Order matters at the edges: output comes back before the
+    // light rises, and goes away only once the light has gone. Nothing is
+    // redrawn either way, because the panel keeps the frame in its own memory.
+    const uint8_t level = mode_backlight();
+    const bool display_on = mode_is_display_on();
+
+    if (display_on && !applied_display_on) {
+        panel_set_display_on(true);
+        applied_display_on = true;
+    }
+
+    if (level != applied_backlight) {
+        panel_set_backlight(level);
+        applied_backlight = level;
+    }
+
+    if (!display_on && applied_display_on) {
+        panel_set_display_on(false);
+        applied_display_on = false;
     }
 
     // Every pass polls the touch controller over I2C, so this caps the poll

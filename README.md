@@ -32,6 +32,7 @@ On power-up the terminal runs its self-test. After about five seconds the termin
 2. **Hold still for one second.** The selection is confirmed and the display fades to black. The terminal is now armed.
 3. **Touch the screen** to roll. A touch while the list is still showing takes the highlighted die and rolls it at once. The result stays on screen until the next touch, which rolls again.
 4. **Turn the knob** at any time to return to the list.
+5. **Leave the terminal alone for two minutes** and the display goes dark. Touch the screen or turn the knob to bring it back exactly as it was. The touch that wakes it does not roll.
 
 ## 4. Examples
 

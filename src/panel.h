@@ -21,6 +21,10 @@ void panel_present_rows(const uint16_t *pixels, int top, int height);
 
 void panel_set_backlight(uint8_t level);
 
+// Enables or disables frame buffer output (DISPON / DISPOFF). Display memory
+// survives either way, so the panel still holds the last frame while off.
+void panel_set_display_on(bool on);
+
 #ifdef __cplusplus
 }
 #endif

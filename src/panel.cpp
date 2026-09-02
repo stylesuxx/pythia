@@ -14,12 +14,19 @@
 #include "knob_pins.h"
 #include "settings.h"
 
-// One band per DMA transfer. 360x40 keeps the staging buffer under 29 KB of
-// internal RAM and divides the panel height exactly.
+// One band per DMA transfer. 360x40 keeps each staging buffer under 29 KB of
+// internal RAM and divides the panel height exactly. Two buffers, so the next
+// band is converted while the previous one is still on the wire.
 #define PANEL_BAND_LINES 40
+#define PANEL_BAND_COUNT 2
+
+// The ST77916 datasheet caps the QSPI clock at 50 MHz and the ESP32-S3 offers
+// 40 or 80, so 40 is the in-spec choice. The panel does accept 80, but with
+// conversion overlapped the wire is no longer what bounds a present.
+#define PANEL_QSPI_HZ (40 * 1000 * 1000)
 
 static esp_lcd_panel_handle_t panel = NULL;
-static uint16_t *band = NULL;
+static uint16_t *bands[PANEL_BAND_COUNT] = {NULL, NULL};
 static SemaphoreHandle_t band_sent = NULL;
 
 static bool on_band_sent(esp_lcd_panel_io_handle_t io,
@@ -31,11 +38,17 @@ static bool on_band_sent(esp_lcd_panel_io_handle_t io,
 }
 
 bool panel_begin(void) {
-    band_sent = xSemaphoreCreateBinary();
-    band = (uint16_t *)heap_caps_malloc(
-        (size_t)CANVAS_WIDTH * PANEL_BAND_LINES * sizeof(uint16_t), MALLOC_CAP_DMA);
-    if (band_sent == NULL || band == NULL) {
-        Serial.println("panel: no DMA memory for the staging band");
+    band_sent = xSemaphoreCreateCounting(PANEL_BAND_COUNT, 0);
+    for (int i = 0; i < PANEL_BAND_COUNT; i++) {
+        bands[i] = (uint16_t *)heap_caps_malloc(
+            (size_t)CANVAS_WIDTH * PANEL_BAND_LINES * sizeof(uint16_t), MALLOC_CAP_DMA);
+        if (bands[i] == NULL) {
+            Serial.println("panel: no DMA memory for the staging bands");
+            return false;
+        }
+    }
+
+    if (band_sent == NULL) {
         return false;
     }
 
@@ -52,11 +65,11 @@ bool panel_begin(void) {
     ESP_ERROR_CHECK(spi_bus_initialize(SPI2_HOST, &bus_config, SPI_DMA_CH_AUTO));
 
     esp_lcd_panel_io_handle_t io = NULL;
-    const esp_lcd_panel_io_spi_config_t io_config =
+    esp_lcd_panel_io_spi_config_t io_config =
         ST77916_PANEL_IO_QSPI_CONFIG(PIN_LCD_CS, on_band_sent, NULL);
+    io_config.pclk_hz = PANEL_QSPI_HZ;
     ESP_ERROR_CHECK(
         esp_lcd_new_panel_io_spi((esp_lcd_spi_bus_handle_t)SPI2_HOST, &io_config, &io));
-
     st77916_vendor_config_t vendor_config = {
         .init_cmds = lcd_init_cmds,
         .init_cmds_size = sizeof(lcd_init_cmds) / sizeof(lcd_init_cmds[0]),
@@ -82,6 +95,29 @@ void panel_present(const uint16_t *pixels) {
     panel_present_rows(pixels, 0, CANVAS_HEIGHT);
 }
 
+// Converts one band to panel byte order, two pixels per word. Rotated, the
+// band is read backwards and every word's pixel pair swaps too, which is
+// exactly a 32-bit byte reversal.
+static void convert_band(uint16_t *destination, const uint16_t *source, size_t pixels,
+                         bool rotated) {
+    const uint32_t *from = (const uint32_t *)source;
+    uint32_t *to = (uint32_t *)destination;
+    const size_t words = pixels / 2;
+
+    if (rotated) {
+        for (size_t i = 0; i < words; i++) {
+            to[i] = __builtin_bswap32(from[words - 1 - i]);
+        }
+
+        return;
+    }
+
+    for (size_t i = 0; i < words; i++) {
+        const uint32_t word = from[i];
+        to[i] = ((word & 0x00FF00FFu) << 8) | ((word >> 8) & 0x00FF00FFu);
+    }
+}
+
 void panel_present_rows(const uint16_t *pixels, int top, int height) {
     int first = top & ~1;
     int last = (top + height + 1) & ~1;
@@ -95,27 +131,34 @@ void panel_present_rows(const uint16_t *pixels, int top, int height) {
 
     const bool rotated = settings_is_display_rotated();
 
+    // A buffer is reused only once the transfer that last used it has
+    // finished, which the driver reports through band_sent in order.
+    int sent = 0;
     for (int row = first; row < last; row += PANEL_BAND_LINES) {
         const int lines = (row + PANEL_BAND_LINES <= last) ? PANEL_BAND_LINES : (last - row);
         const uint16_t *source = pixels + (size_t)row * CANVAS_WIDTH;
         const size_t count = (size_t)CANVAS_WIDTH * lines;
+        uint16_t *band = bands[sent % PANEL_BAND_COUNT];
 
-        if (rotated) {
-            // Half a turn is the band read backwards, landing on the mirrored rows.
-            const uint16_t *tail = source + count;
-            for (size_t index = 0; index < count; index++) {
-                band[index] = __builtin_bswap16(*(--tail));
-            }
-        } else {
-            for (size_t index = 0; index < count; index++) {
-                band[index] = __builtin_bswap16(source[index]);
-            }
+        if (sent >= PANEL_BAND_COUNT) {
+            xSemaphoreTake(band_sent, portMAX_DELAY);
         }
+        convert_band(band, source, count, rotated);
 
         const int top_row = rotated ? (CANVAS_HEIGHT - row - lines) : row;
         esp_lcd_panel_draw_bitmap(panel, 0, top_row, CANVAS_WIDTH, top_row + lines, band);
+
+        sent++;
+    }
+
+    const int outstanding = sent < PANEL_BAND_COUNT ? sent : PANEL_BAND_COUNT;
+    for (int index = 0; index < outstanding; index++) {
         xSemaphoreTake(band_sent, portMAX_DELAY);
     }
+}
+
+void panel_set_display_on(bool on) {
+    esp_lcd_panel_disp_on_off(panel, on);
 }
 
 void panel_set_backlight(uint8_t level) {
