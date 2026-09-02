@@ -249,6 +249,7 @@ static void check_stage_band(const theme_t *theme, const roll_t *roll) {
     for (int column = 0; column < CANVAS_WIDTH; column++) {
         background_row[column] = theme->background;
     }
+    const frame_rows_t stage = reveal_stage();
 
     reveal_begin(roll, 0);
     for (uint32_t now = 0; reveal_is_animating(now); now += STEP_MS) {
@@ -256,7 +257,7 @@ static void check_stage_band(const theme_t *theme, const roll_t *roll) {
         reveal_draw(now, FRAME_ALPHA);
         const uint16_t *pixels = canvas_pixels();
         for (int row = 0; row < CANVAS_HEIGHT; row++) {
-            if (row >= REVEAL_STAGE_TOP && row < REVEAL_STAGE_TOP + REVEAL_STAGE_HEIGHT) {
+            if (row >= stage.top && row < stage.top + stage.height) {
                 continue;
             }
 
@@ -264,6 +265,24 @@ static void check_stage_band(const theme_t *theme, const roll_t *roll) {
                        sizeof(background_row)) != 0) {
                 fail("%s: %s draws outside the stage band at %u ms, row %d", theme->name,
                      describe(roll), (unsigned)now, row);
+                return;
+            }
+        }
+    }
+}
+
+// The rim caption must lie entirely outside the stage, so a band repaint can
+// never touch it. Measured from the widest die name rather than assumed.
+static void check_caption_clears_stage(const theme_t *theme) {
+    const frame_rows_t stage = reveal_stage();
+    canvas_fill(theme->background);
+    reveal_draw_caption("ORACLE", FRAME_ALPHA);
+
+    const uint16_t *pixels = canvas_pixels();
+    for (int row = stage.top; row < stage.top + stage.height; row++) {
+        for (int column = 0; column < CANVAS_WIDTH; column++) {
+            if (pixels[row * CANVAS_WIDTH + column] != theme->background) {
+                fail("%s: the rim caption reaches into the stage at row %d", theme->name, row);
                 return;
             }
         }
@@ -292,6 +311,7 @@ int main(void) {
         // The widest result a die can produce, at the number face's size.
         roll_t widest = {.kind = DIE_NUMERIC, .answer = "100", .modifier = NULL};
         check_stage_band(theme, &widest);
+        check_caption_clears_stage(theme);
 
         printf("%s: concealed for %u ms, %u outcomes\n", theme->name, (unsigned)until,
                (unsigned)ORACLE_OUTCOME_COUNT);

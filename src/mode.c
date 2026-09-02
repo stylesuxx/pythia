@@ -4,6 +4,7 @@
 
 #include "boot.h"
 #include "canvas.h"
+#include "frame.h"
 #include "haptics.h"
 #include "menu.h"
 #include "oracle.h"
@@ -15,7 +16,6 @@
 #define SELECTION_IDLE_MS 1000
 #define CHOICE_FADE_MS 180
 #define STAGE_FADE_MS 200
-#define FRAME_INTERVAL_MS 16
 
 typedef enum {
     PENDING_NONE,
@@ -28,8 +28,6 @@ static pending_t pending = PENDING_NONE;
 static uint8_t selected = 0;
 
 static uint32_t last_rotation_ms = 0;
-static uint32_t last_frame_ms = 0;
-static bool full_frame_pending = true;
 
 // One alpha moving between two values. Restarting it from its current value
 // is what lets an interrupted fade continue smoothly.
@@ -64,7 +62,7 @@ static void roll_and_reveal(uint32_t now) {
     reveal_begin(&roll, now);
     mode = MODE_RESULT;
     start_fade(255.0f, 255.0f, 0, now);
-    full_frame_pending = true;
+    frame_mark_whole();
 }
 
 static void settle_choice(void) {
@@ -81,7 +79,7 @@ static void handle_boot(uint32_t now) {
     // its rim caption fading in.
     mode = MODE_ARMED;
     start_fade(0.0f, 255.0f, STAGE_FADE_MS, now);
-    full_frame_pending = true;
+    frame_mark_whole();
 }
 
 static void handle_rotation(uint32_t now, int32_t detents) {
@@ -96,7 +94,7 @@ static void handle_rotation(uint32_t now, int32_t detents) {
     pending = PENDING_NONE;
     last_rotation_ms = now;
     start_fade(fade_alpha(now), 255.0f, CHOICE_FADE_MS, now);
-    full_frame_pending = true;
+    frame_mark_whole();
 }
 
 static void handle_tap(uint32_t now) {
@@ -146,7 +144,7 @@ static void handle_pending(uint32_t now) {
         // The choice has faded out; the rim caption is drawn at full strength
         // from here on.
         start_fade(255.0f, 255.0f, 0, now);
-        full_frame_pending = true;
+        frame_mark_whole();
 
         return;
     }
@@ -154,36 +152,13 @@ static void handle_pending(uint32_t now) {
     roll_and_reveal(now);
 }
 
-static mode_present_t render(uint32_t now) {
-    const bool animating = mode == MODE_BOOT || is_fading(now) ||
-                           (mode == MODE_RESULT && reveal_is_animating(now));
-    if (!animating && !full_frame_pending) {
-        return PRESENT_NONE;
-    }
-
-    if (!full_frame_pending && (now - last_frame_ms) < FRAME_INTERVAL_MS) {
-        return PRESENT_NONE;
-    }
-
-    last_frame_ms = now;
-
-    const theme_t *theme = theme_active();
+static void draw_scene(void *context, frame_rows_t rows) {
+    const uint32_t now = *(const uint32_t *)context;
     const uint8_t alpha = fade_alpha(now);
 
-    // The armed screen only fades when the boot sequence hands over to it,
-    // and that fade is the rim caption's, which lives outside the band.
-    const bool whole_screen = full_frame_pending || mode == MODE_BOOT ||
-                              mode == MODE_CHOOSING || (mode == MODE_ARMED && is_fading(now));
-
-    if (whole_screen) {
-        canvas_fill(theme->background);
-    } else {
-        canvas_fill_rows(REVEAL_STAGE_TOP, REVEAL_STAGE_HEIGHT, theme->background);
-    }
-
     // The rim caption trades places with the centred name as the choice
-    // settles, then holds. Band frames never reach it, so it survives every
-    // roll.
+    // settles, then holds. It lies outside the reveal's stage, so a band
+    // frame never reaches it and it survives every roll.
     uint8_t caption_alpha = 0;
     switch (mode) {
         case MODE_BOOT: {
@@ -205,13 +180,34 @@ static mode_present_t render(uint32_t now) {
         } break;
     }
 
-    if (whole_screen) {
+    if (rows.height == CANVAS_HEIGHT) {
         reveal_draw_caption(DICE[selected].name, caption_alpha);
-        full_frame_pending = false;
-        return PRESENT_WHOLE;
+    }
+}
+
+// Marks what is moving on the current screen, then lets the frame decide
+// whether this instant gets drawn.
+static frame_rows_t render(uint32_t now) {
+    switch (mode) {
+        case MODE_BOOT: {
+            frame_mark_whole();
+        } break;
+
+        case MODE_CHOOSING:
+        case MODE_ARMED: {
+            if (is_fading(now)) {
+                frame_mark_whole();
+            }
+        } break;
+
+        case MODE_RESULT: {
+            if (is_fading(now) || reveal_is_animating(now)) {
+                frame_mark(reveal_stage());
+            }
+        } break;
     }
 
-    return PRESENT_STAGE;
+    return frame_render(now, theme_active()->background, draw_scene, &now);
 }
 
 void mode_begin(uint32_t now, uint8_t die) {
@@ -219,13 +215,13 @@ void mode_begin(uint32_t now, uint8_t die) {
     mode = MODE_BOOT;
     pending = PENDING_NONE;
     last_rotation_ms = now;
-    last_frame_ms = now;
-    full_frame_pending = true;
+    frame_begin(now);
+    frame_mark_whole();
     boot_begin(now);
     start_fade(255.0f, 255.0f, 0, now);
 }
 
-mode_present_t mode_step(uint32_t now, mode_input_t input) {
+frame_rows_t mode_step(uint32_t now, mode_input_t input) {
     // Inputs are drained but ignored until the boot sequence ends, so a turn
     // during boot does not land on a different die afterwards.
     if (mode == MODE_BOOT) {

@@ -13,6 +13,10 @@
 #define NUMBER_BASELINE 223
 #define MODIFIER_GAP 20
 
+// Rows the two faces and the modifier can reach at those baselines.
+#define STAGE_TOP 124
+#define STAGE_HEIGHT 110
+
 // Baseline circle for the rim caption, measured from the panel centre.
 #define CAPTION_RADIUS 166.0f
 #define CAPTION_ANGLE 1.5707963f // bottom of the panel
@@ -158,6 +162,10 @@ void reveal_draw_caption(const char *text, uint8_t alpha) {
     const theme_t *theme = theme_active();
     canvas_text_arc(theme->caption_font, text, CANVAS_WIDTH / 2.0f, CANVAS_HEIGHT / 2.0f,
                     CAPTION_RADIUS, CAPTION_ANGLE, CAPTION_TRACKING, theme->label, alpha);
+}
+
+frame_rows_t reveal_stage(void) {
+    return (frame_rows_t){STAGE_TOP, STAGE_HEIGHT};
 }
 
 bool reveal_is_animating(uint32_t now) {

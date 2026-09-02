@@ -8,12 +8,12 @@
 
 #include "canvas.h"
 #include "encoder.h"
+#include "frame.h"
 #include "haptics.h"
 #include "knob_pins.h"
 #include "mode.h"
 #include "oracle.h"
 #include "panel.h"
-#include "reveal.h"
 #include "settings.h"
 #include "theme.h"
 #include "touch_cst816.h"
@@ -77,17 +77,9 @@ void loop() {
     const uint32_t now = millis();
     const mode_input_t input = {encoder_take_detents(), touch_began(now)};
 
-    switch (mode_step(now, input)) {
-        case PRESENT_WHOLE: {
-            panel_present(canvas_pixels());
-        } break;
-
-        case PRESENT_STAGE: {
-            panel_present_rows(canvas_pixels(), REVEAL_STAGE_TOP, REVEAL_STAGE_HEIGHT);
-        } break;
-
-        case PRESENT_NONE:
-            break;
+    const frame_rows_t rows = mode_step(now, input);
+    if (rows.height > 0) {
+        panel_present_rows(canvas_pixels(), rows.top, rows.height);
     }
 
     // Every pass polls the touch controller over I2C, so this caps the poll

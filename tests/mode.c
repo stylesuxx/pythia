@@ -11,6 +11,7 @@
 #include "haptics.h"
 #include "mode.h"
 #include "oracle.h"
+#include "reveal.h"
 #include "settings.h"
 
 #define STEP_MS 2
@@ -49,9 +50,29 @@ static void reset_recording(void) {
 
 static const mode_input_t NOTHING = {0, false};
 
-static mode_present_t step(uint32_t now, int32_t detents, bool tap) {
+static frame_rows_t step(uint32_t now, int32_t detents, bool tap) {
     const mode_input_t input = {detents, tap};
     return mode_step(now, input);
+}
+
+static bool is_whole(frame_rows_t rows) {
+    return rows.top == 0 && rows.height == CANVAS_HEIGHT;
+}
+
+static bool is_stage(frame_rows_t rows) {
+    const frame_rows_t stage = reveal_stage();
+    return rows.top == stage.top && rows.height == stage.height;
+}
+
+// A frame may wait for the interval since the last one, so a change asked
+// for now is allowed to arrive within that window.
+static bool whole_frame_within(uint32_t now, frame_rows_t rows, uint32_t window) {
+    bool whole = is_whole(rows);
+    for (uint32_t later = now + STEP_MS; !whole && later <= now + window; later += STEP_MS) {
+        whole = is_whole(mode_step(later, NOTHING));
+    }
+
+    return whole;
 }
 
 // Steps quietly from `from` to `to`, returning the first instant the machine
@@ -76,10 +97,11 @@ static uint32_t boot_on(uint8_t die) {
     uint32_t handover = 0;
     for (uint32_t now = 0; now <= BOOT_LIMIT_MS; now += STEP_MS) {
         const bool poke = now == 1000 || now == 2500;
-        const mode_present_t present = step(now, poke ? 3 : 0, poke);
+        const frame_rows_t rows = step(now, poke ? 3 : 0, poke);
         if (mode_current() != MODE_BOOT) {
             handover = now;
-            EXPECT(present == PRESENT_WHOLE, "boot handover did not present the whole screen");
+            EXPECT(whole_frame_within(now, rows, 16),
+                   "boot handover did not present the whole screen within a frame");
             break;
         }
     }
@@ -103,10 +125,10 @@ static void check_turning_browses_the_list(void) {
     uint32_t now = boot_on(3) + 500;
     reset_recording();
 
-    mode_present_t present = step(now, 1, false);
+    const frame_rows_t rows = step(now, 1, false);
     EXPECT(mode_current() == MODE_CHOOSING, "a click did not open the list");
     EXPECT(mode_selected_die() == 4, "one click clockwise landed on %u", (unsigned)mode_selected_die());
-    EXPECT(present == PRESENT_WHOLE, "opening the list did not present the whole screen");
+    EXPECT(is_whole(rows), "opening the list presented %d+%d", rows.top, rows.height);
     EXPECT(haptic_counts[HAPTIC_DETENT] == 1, "a click played %d detent haptics",
            haptic_counts[HAPTIC_DETENT]);
 
@@ -168,9 +190,9 @@ static void check_tap_when_armed_rolls(void) {
     const uint32_t now = boot_on(5) + 500;
     reset_recording();
 
-    const mode_present_t present = step(now, 0, true);
+    const frame_rows_t rows = step(now, 0, true);
     EXPECT(mode_current() == MODE_RESULT, "a tap when armed did not roll");
-    EXPECT(present == PRESENT_WHOLE, "the roll did not present the whole screen");
+    EXPECT(is_whole(rows), "the roll presented %d+%d", rows.top, rows.height);
     EXPECT(persist_calls == 0, "rolling persisted the die");
 }
 
@@ -213,21 +235,28 @@ static void check_frames_are_paced(void) {
     mode_step(now, NOTHING);
     int idle_presents = 0;
     for (uint32_t later = now; later <= now + 500; later += STEP_MS) {
-        idle_presents += mode_step(later, NOTHING) != PRESENT_NONE;
+        idle_presents += mode_step(later, NOTHING).height != 0;
     }
 
     EXPECT(idle_presents == 0, "the armed screen presented %d frames while idle", idle_presents);
 
     step(now + 500, 0, true);
-    int whole = 0;
     int stage = 0;
+    int other = 0;
     for (uint32_t later = now + 500 + STEP_MS; later <= now + 500 + 320; later += STEP_MS) {
-        const mode_present_t present = mode_step(later, NOTHING);
-        whole += present == PRESENT_WHOLE;
-        stage += present == PRESENT_STAGE;
+        const frame_rows_t rows = mode_step(later, NOTHING);
+        if (rows.height == 0) {
+            continue;
+        }
+
+        if (is_stage(rows)) {
+            stage++;
+        } else {
+            other++;
+        }
     }
 
-    EXPECT(whole == 0, "the reveal presented %d whole frames", whole);
+    EXPECT(other == 0, "the reveal presented %d frames beyond its stage", other);
     EXPECT(stage >= 15 && stage <= 21, "the reveal presented %d band frames in 320 ms", stage);
 }
 
