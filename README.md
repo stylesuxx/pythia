@@ -96,6 +96,7 @@ make menu                                          # menu.gif
 make reveal                                        # reveal.gif
 make reveal ANSWER=NO MODIFIER=-
 make reveal ANSWER=87 MODIFIER=- CAPTION=D100
+make reveal ANSWER=87 MODIFIER=- CAPTION=D100 EFFECT=slide
 ```
 
 What it renders is what the panel draws, down to RGB565 quantisation. Each target writes to the repository root by default; the copies in section 4 were written straight into `resources/` by passing `BOOT_GIF`, `MENU_GIF` or `REVEAL_GIF`.

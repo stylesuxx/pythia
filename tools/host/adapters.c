@@ -7,6 +7,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 
+#include "effects/effect.h"
 #include "esp_random.h"
 #include "haptics.h"
 #include "settings.h"
@@ -27,4 +28,8 @@ __attribute__((weak)) void settings_set_die_index(uint8_t index) {
 
 __attribute__((weak)) bool settings_is_coin_enabled(void) {
     return true;
+}
+
+__attribute__((weak)) uint8_t settings_effect_index(void) {
+    return effect_index_of("tear");
 }

@@ -3,6 +3,7 @@
 #   make                     build the preview binary
 #   make reveal              render the oracle reveal to reveal.gif
 #   make reveal ANSWER=NO MODIFIER=-
+#   make reveal ANSWER=17 MODIFIER=- CAPTION=D20 EFFECT=slide
 #   make boot                render the power-on sequence to boot.gif
 #   make menu                render one full turn through the die list to menu.gif
 #   make coin                render the D2 coin turning and flipping to coin.gif
@@ -15,8 +16,8 @@
 #   make clean               remove build output
 #   make distclean           also remove the fetched driver
 #
-# Sources are globbed, so a new .c under src/ joins the preview without editing
-# this file, and a new .c under tests/ becomes a test program that make check
+# Sources are globbed, so a new .c under src/ or src/effects/ joins the preview
+# without editing this file, and a new .c under tests/ becomes a test program that make check
 # runs. Anything they need from the ESP-IDF gets a stub in tools/host.
 #
 # Building the shared rendering sources here with -Wall -Wextra also gives them
@@ -34,7 +35,7 @@ FONT_GENERATOR := $(BUILD)/make_fonts
 # The rendering sources are shared; each host program adds its own file and
 # its own adapters for the hardware it stands in for. Every tests/*.c is one
 # test program with its own main; its exit status is its verdict.
-SHARED_SOURCES := $(wildcard src/*.c) $(wildcard src/generated/*.c) tools/host/adapters.c
+SHARED_SOURCES := $(wildcard src/*.c) $(wildcard src/effects/*.c) $(wildcard src/generated/*.c) tools/host/adapters.c
 SHARED_OBJECTS := $(SHARED_SOURCES:%.c=$(BUILD)/%.o)
 PREVIEW_SOURCES := tools/host/preview.c tools/host/gif.c
 PREVIEW_OBJECTS := $(PREVIEW_SOURCES:%.c=$(BUILD)/%.o) $(SHARED_OBJECTS)
@@ -78,6 +79,7 @@ PORT ?=
 UPLOAD_PORT_FLAG := $(if $(PORT),--upload-port $(PORT),)
 
 THEME ?= midnight
+EFFECT ?= tear
 ANSWER ?= YES
 MODIFIER ?= and
 CAPTION ?= ORACLE
@@ -122,7 +124,7 @@ $(BUILD)/%.o: %.c
 	$(CC) $(CFLAGS) $(CPPFLAGS) -MMD -MP -c $< -o $@
 
 reveal: $(PREVIEW)
-	$(PREVIEW) reveal $(THEME) $(ANSWER) $(MODIFIER) $(CAPTION) $(REVEAL_GIF)
+	$(PREVIEW) reveal $(THEME) $(EFFECT) $(ANSWER) $(MODIFIER) $(CAPTION) $(REVEAL_GIF)
 
 boot: $(PREVIEW)
 	$(PREVIEW) boot $(THEME) $(BOOT_GIF)

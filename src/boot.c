@@ -6,6 +6,7 @@
 
 #include "canvas.h"
 #include "generated/fonts.h"
+#include "glitch.h"
 #include "haptics.h"
 #include "theme.h"
 
@@ -53,7 +54,8 @@ const char BOOT_SCRAMBLE_CHARACTERS[] = "0123456789ABCDEFXZ#%&/";
 #define GLITCH_START_MS 2250
 #define GLITCH_MS 220
 #define GLITCH_STEP_MS 40
-#define GLITCH_BANDS 4
+#define GLITCH_SLICES 4
+#define GLITCH_SHIFT 18
 
 #define RULE_START_MS 2250
 #define RULE_MS 450
@@ -105,16 +107,6 @@ static float ease_out_cubic(float t) {
 
 static uint8_t scale_alpha(uint8_t alpha, float factor) {
     return (uint8_t)lroundf((float)alpha * clamp_unit(factor));
-}
-
-// Deterministic per position and step, so the preview and the device agree.
-static uint32_t hash(uint32_t position, uint32_t step) {
-    uint32_t value = position * 2654435761u ^ (step + 1) * 40503u;
-    value ^= value >> 13;
-    value *= 0x5bd1e995u;
-    value ^= value >> 15;
-
-    return value;
 }
 
 static uint32_t settle_ms(uint8_t position) {
@@ -212,31 +204,28 @@ static void draw_wordmark(const theme_t *theme, uint32_t elapsed, uint8_t alpha)
             canvas_text(&font_boot_wordmark, glyph, pen_x, WORDMARK_BASELINE, theme->answer,
                         alpha);
         } else if (reached && elapsed >= TYPE_START_MS - TYPE_STEP_MS) {
-            glyph[0] = BOOT_SCRAMBLE_CHARACTERS[hash(position, scramble_step) % SCRAMBLE_COUNT];
+            glyph[0] = BOOT_SCRAMBLE_CHARACTERS[glitch_hash(position, scramble_step) % SCRAMBLE_COUNT];
             canvas_text(&font_boot_wordmark, glyph, pen_x, WORDMARK_BASELINE, theme->label,
                         alpha);
         }
     }
 }
 
-// Tears a few bands of the wordmark rows sideways. The bands and their offsets
-// change every GLITCH_STEP_MS, so the tear flickers rather than sliding.
+// Tears the wordmark rows sideways in a few slices that change every
+// GLITCH_STEP_MS, so the tear flickers rather than sliding.
 static void draw_glitch(const theme_t *theme, uint32_t elapsed) {
     if (elapsed < GLITCH_START_MS || elapsed >= GLITCH_START_MS + GLITCH_MS) {
         return;
     }
 
-    const uint32_t step = (elapsed - GLITCH_START_MS) / GLITCH_STEP_MS;
-    const int top = WORDMARK_BASELINE - font_boot_wordmark.ascent;
-    const int span = font_boot_wordmark.line_height;
-
-    for (uint32_t band = 0; band < GLITCH_BANDS; band++) {
-        const uint32_t seed = hash(100 + band, step);
-        const int band_top = top + (int)(seed % (uint32_t)span);
-        const int band_height = 3 + (int)((seed >> 8) % 12u);
-        const int delta = (int)((seed >> 16) % 37u) - 18;
-        canvas_shift_rows(band_top, band_height, delta, theme->background);
-    }
+    const glitch_tear_t tear = {
+        .top = WORDMARK_BASELINE - font_boot_wordmark.ascent,
+        .span = font_boot_wordmark.line_height,
+        .limit = CANVAS_HEIGHT,
+        .slices = GLITCH_SLICES,
+        .max_shift = GLITCH_SHIFT,
+    };
+    glitch_tear(&tear, 0, (elapsed - GLITCH_START_MS) / GLITCH_STEP_MS, theme->background);
 }
 
 static void draw_rule(const theme_t *theme, uint32_t elapsed, uint8_t alpha) {

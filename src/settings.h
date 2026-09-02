@@ -27,6 +27,10 @@ void settings_set_coin_enabled(bool enabled);
 uint8_t settings_theme_index(void);
 void settings_set_theme_index(uint8_t index);
 
+// Index into EFFECTS of the way a numeric result arrives.
+uint8_t settings_effect_index(void);
+void settings_set_effect_index(uint8_t index);
+
 // Index into DICE of the die in use, so a power cycle comes back to it. Falls
 // back to the oracle when nothing is stored or the stored index is out of
 // range.

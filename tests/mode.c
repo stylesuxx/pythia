@@ -9,6 +9,7 @@
 
 #include "canvas.h"
 #include "coin.h"
+#include "effects/effect.h"
 #include "haptics.h"
 #include "mode.h"
 #include "oracle.h"
@@ -53,6 +54,12 @@ static bool coin_setting = true;
 
 bool settings_is_coin_enabled(void) {
     return coin_setting;
+}
+
+// The interaction rules hold under every effect. The slide is pinned so the
+// roll cue counted below is one known haptic.
+uint8_t settings_effect_index(void) {
+    return effect_index_of("slide");
 }
 
 static void reset_recording(void) {

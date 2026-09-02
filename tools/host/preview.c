@@ -9,6 +9,7 @@
 #include "boot.h"
 #include "canvas.h"
 #include "coin.h"
+#include "effects/effect.h"
 #include "mode.h"
 #include "oracle.h"
 #include "reveal.h"
@@ -43,13 +44,31 @@ void haptics_play(uint8_t effect) {
     (void)effect;
 }
 
-// Settings are device state; the preview pins them to the shipped defaults.
+// Settings are device state; the preview pins them to the shipped defaults,
+// except the effect, which the reveal render takes from its arguments.
+static uint8_t preview_effect = 0;
+
 bool settings_is_display_rotated(void) {
     return true;
 }
 
 bool settings_is_haptics_enabled(void) {
     return true;
+}
+
+uint8_t settings_effect_index(void) {
+    return preview_effect;
+}
+
+static bool select_effect(const char *name) {
+    for (uint8_t index = 0; index < EFFECT_COUNT; index++) {
+        if (strcmp(EFFECTS[index]->name, name) == 0) {
+            preview_effect = index;
+            return true;
+        }
+    }
+
+    return false;
 }
 
 static bool is_inside_panel(int x, int y) {
@@ -197,7 +216,8 @@ static int render_coin(gif_writer_t *gif) {
 }
 
 static void usage(void) {
-    fprintf(stderr, "usage: preview reveal <theme> <answer> <modifier|-> <caption> <output.gif>\n");
+    fprintf(stderr,
+            "usage: preview reveal <theme> <effect> <answer> <modifier|-> <caption> <output.gif>\n");
     fprintf(stderr, "       preview boot <theme> <output.gif>\n");
     fprintf(stderr, "       preview menu <theme> <output.gif>\n");
     fprintf(stderr, "       preview coin <theme> <output.gif>\n");
@@ -207,7 +227,7 @@ int main(int argument_count, char **arguments) {
     const bool boot = argument_count == 4 && strcmp(arguments[1], "boot") == 0;
     const bool menu = argument_count == 4 && strcmp(arguments[1], "menu") == 0;
     const bool coin = argument_count == 4 && strcmp(arguments[1], "coin") == 0;
-    const bool reveal = argument_count == 7 && strcmp(arguments[1], "reveal") == 0;
+    const bool reveal = argument_count == 8 && strcmp(arguments[1], "reveal") == 0;
     if (!boot && !menu && !coin && !reveal) {
         usage();
         return 1;
@@ -217,6 +237,16 @@ int main(int argument_count, char **arguments) {
         if (strcmp(THEMES[index].name, arguments[2]) == 0) {
             theme_select(index);
         }
+    }
+
+    if (reveal && !select_effect(arguments[3])) {
+        fprintf(stderr, "preview: no effect named %s; the table holds", arguments[3]);
+        for (uint8_t index = 0; index < EFFECT_COUNT; index++) {
+            fprintf(stderr, " %s", EFFECTS[index]->name);
+        }
+
+        fputc('\n', stderr);
+        return 1;
     }
 
     if (!canvas_begin()) {
@@ -239,7 +269,7 @@ int main(int argument_count, char **arguments) {
     } else if (coin) {
         frames = render_coin(&gif);
     } else {
-        frames = render_reveal(arguments[3], arguments[4], arguments[5], &gif);
+        frames = render_reveal(arguments[4], arguments[5], arguments[6], &gif);
     }
 
     if (!gif_end(&gif) || frames < 0) {
