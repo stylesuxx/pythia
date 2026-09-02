@@ -60,12 +60,14 @@ void canvas_shift_rows(int top, int height, int delta_x, uint16_t fill);
 void canvas_text(const font_t *font, const char *text, int left_x, int baseline_y,
                  uint16_t color, uint8_t alpha);
 
-// Draws text centred on a point, scaled independently on each axis: 1 is
+// Draws one glyph centred on a point, scaled independently on each axis: 1 is
 // unscaled, 0 is edge on. Sampling is bilinear, and supersampled along
 // whichever axis is being minified, so a face turning away narrows smoothly
-// instead of aliasing.
-void canvas_text_scaled(const font_t *font, const char *text, float centre_x, float baseline_y,
-                        float scale_x, float scale_y, uint16_t color, uint8_t alpha);
+// instead of aliasing. Taking a codepoint rather than a string is what lets a
+// coin face be a symbol above ASCII without a UTF-8 decoder in the renderer.
+void canvas_glyph_scaled(const font_t *font, uint32_t codepoint, float centre_x,
+                         float baseline_y, float scale_x, float scale_y, uint16_t color,
+                         uint8_t alpha);
 
 // Draws along a circle, each glyph rotated so its baseline stays tangent. The
 // run is centred on centre_angle, measured in radians clockwise from the

@@ -330,8 +330,9 @@ void coin_draw(uint32_t now, uint8_t alpha) {
         return;
     }
 
-    const char text[2] = {squash >= 0.0f ? '1' : '2', '\0'};
-    const glyph_t *glyph = font_find_glyph(theme->number_font, (uint8_t)text[0]);
+    // Which way the coin leans is which face is out.
+    const uint32_t codepoint = theme->coin_faces[squash >= 0.0f ? 0 : 1];
+    const glyph_t *glyph = font_find_glyph(theme->number_font, codepoint);
     if (glyph == NULL) {
         return;
     }
@@ -343,18 +344,20 @@ void coin_draw(uint32_t now, uint8_t alpha) {
     const uint16_t groove = shade(face_color, 0.42f);
     const uint16_t lit = shade(face_color, 1.35f);
 
-    // The numeral rides on the face, so it foreshortens with it and sits on the
-    // face's centre rather than the coin's.
+    // The device rides on the face, so it foreshortens with it and sits on the
+    // face's centre rather than the coin's. The baseline is placed so the ink,
+    // not the em box, is what ends up centred.
     const float face_centre_y = COIN_CENTRE_Y - offset_y;
-    const float baseline = face_centre_y + (float)(glyph->top / 2) * fabsf(squash);
+    const float ink_offset = (float)glyph->top - (float)glyph->height * 0.5f;
+    const float baseline = face_centre_y + ink_offset * fabsf(squash);
 
     if (fabsf(squash) > 0.55f) {
-        canvas_text_scaled(theme->number_font, text, centre_x + ENGRAVE_DEPTH,
-                           baseline + ENGRAVE_DEPTH, 1.0f, fabsf(squash), lit, alpha);
+        canvas_glyph_scaled(theme->number_font, codepoint, centre_x + ENGRAVE_DEPTH,
+                            baseline + ENGRAVE_DEPTH, 1.0f, fabsf(squash), lit, alpha);
     }
 
-    canvas_text_scaled(theme->number_font, text, centre_x, baseline, 1.0f, fabsf(squash),
-                       groove, alpha);
+    canvas_glyph_scaled(theme->number_font, codepoint, centre_x, baseline, 1.0f, fabsf(squash),
+                        groove, alpha);
 }
 
 frame_rect_t coin_stage(void) {

@@ -16,6 +16,8 @@ typedef struct {
     const font_t *number_font; // die results
     const font_t *label_font;
     const font_t *caption_font;
+    uint32_t coin_faces[2]; // struck on face one and face two of the D2 coin,
+                            // drawn from number_font
     uint16_t background;
     uint16_t answer;
     uint16_t modifier;

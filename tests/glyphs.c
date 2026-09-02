@@ -1,7 +1,7 @@
-// Every string the firmware draws must be fully present in the face it is
-// drawn with. canvas_text() skips a missing glyph in silence, so a widened die
-// list, a reworded outcome or a new scramble glyph would otherwise fail only
-// on the panel.
+// Every mark the firmware draws must be present in the face it is drawn with.
+// canvas_text() skips a missing glyph in silence, so a widened die list, a
+// reworded outcome, a new scramble glyph or a coin face the typeface does not
+// carry would otherwise fail only on the panel.
 
 #include <stdbool.h>
 #include <stdio.h>
@@ -20,6 +20,13 @@ static void expect_glyphs(const font_t *font, const char *face, const char *text
             fprintf(stderr, "FAIL: %s lacks '%c', needed to draw \"%s\"\n", face, *cursor, text);
             failures++;
         }
+    }
+}
+
+static void expect_codepoint(const font_t *font, const char *face, uint32_t codepoint) {
+    if (font_find_glyph(font, codepoint) == NULL) {
+        fprintf(stderr, "FAIL: %s lacks U+%04X\n", face, codepoint);
+        failures++;
     }
 }
 
@@ -49,6 +56,16 @@ static void check_theme(const theme_t *theme) {
 
     snprintf(face, sizeof(face), "%s number face", theme->name);
     expect_glyphs(theme->number_font, face, "0123456789");
+
+    // The two coin faces have to differ, or the D2 result is unreadable.
+    snprintf(face, sizeof(face), "%s coin face", theme->name);
+    expect_codepoint(theme->number_font, face, theme->coin_faces[0]);
+    expect_codepoint(theme->number_font, face, theme->coin_faces[1]);
+    if (theme->coin_faces[0] == theme->coin_faces[1]) {
+        fprintf(stderr, "FAIL: %s strikes both coin faces with U+%04X\n", theme->name,
+                theme->coin_faces[0]);
+        failures++;
+    }
 }
 
 int main(void) {

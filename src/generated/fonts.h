@@ -12,10 +12,6 @@ extern const font_t font_midnight_answer;
 extern const font_t font_midnight_number;
 extern const font_t font_midnight_label;
 extern const font_t font_midnight_caption;
-extern const font_t font_parchment_answer;
-extern const font_t font_parchment_number;
-extern const font_t font_parchment_label;
-extern const font_t font_parchment_caption;
 
 #ifdef __cplusplus
 }

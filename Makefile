@@ -2,7 +2,7 @@
 #
 #   make                     build the preview binary
 #   make reveal              render the oracle reveal to reveal.gif
-#   make reveal ANSWER=NO MODIFIER=- THEME=parchment
+#   make reveal ANSWER=NO MODIFIER=-
 #   make boot                render the power-on sequence to boot.gif
 #   make menu                render one full turn through the die list to menu.gif
 #   make coin                render the D2 coin turning and flipping to coin.gif

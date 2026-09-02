@@ -302,10 +302,16 @@ static float arc_text_span(const font_t *font, const char *text, float tracking)
 }
 
 
-void canvas_text_scaled(const font_t *font, const char *text, float centre_x, float baseline_y,
-                        float scale_x, float scale_y, uint16_t color, uint8_t alpha) {
-    // Below this the run is thinner than a pixel and there is nothing to show.
+void canvas_glyph_scaled(const font_t *font, uint32_t codepoint, float centre_x,
+                         float baseline_y, float scale_x, float scale_y, uint16_t color,
+                         uint8_t alpha) {
+    // Below this the mark is thinner than a pixel and there is nothing to show.
     if (alpha == 0 || scale_x < 0.015f || scale_y < 0.015f) {
+        return;
+    }
+
+    const glyph_t *glyph = font_find_glyph(font, codepoint);
+    if (glyph == NULL) {
         return;
     }
 
@@ -317,46 +323,36 @@ void canvas_text_scaled(const font_t *font, const char *text, float centre_x, fl
     const int subsamples = squeeze >= 0.7f ? 1 : (squeeze >= 0.35f ? 2 : 3);
     const bool along_x = scale_x <= scale_y;
 
-    // The pen walks the unscaled run, measured from its centre, and only the
-    // destination is scaled. That keeps the glyph spacing proportional.
-    float pen = (float)font_text_width(font, text) * -0.5f;
+    // Centred on the ink rather than the advance, so a symbol with uneven side
+    // bearings still sits in the middle of what it is struck into. Only the
+    // destination is scaled; the source is walked unscaled.
+    const float glyph_left = (float)glyph->width * -0.5f;
+    const float glyph_top = -(float)glyph->top;
 
-    for (const char *cursor = text; *cursor != '\0'; cursor++) {
-        const glyph_t *glyph = font_find_glyph(font, (uint8_t)*cursor);
-        if (glyph == NULL) {
-            continue;
-        }
+    const int first_x = (int)floorf(centre_x + glyph_left * scale_x) - 1;
+    const int last_x = (int)ceilf(centre_x + (glyph_left + (float)glyph->width) * scale_x) + 1;
+    const int first_y = (int)floorf(baseline_y + glyph_top * scale_y) - 1;
+    const int last_y = (int)ceilf(baseline_y + (glyph_top + (float)glyph->height) * scale_y) + 1;
 
-        const float glyph_left = pen + (float)glyph->left;
-        const float glyph_top = -(float)glyph->top;
+    for (int y = first_y; y <= last_y; y++) {
+        for (int x = first_x; x <= last_x; x++) {
+            float coverage = 0.0f;
+            for (int sub = 0; sub < subsamples; sub++) {
+                const float shift = -0.5f + (0.5f + (float)sub) / (float)subsamples;
+                const float sample_x = along_x ? (float)x + shift : (float)x;
+                const float sample_y = along_x ? (float)y : (float)y + shift;
 
-        const int first_x = (int)floorf(centre_x + glyph_left * scale_x) - 1;
-        const int last_x = (int)ceilf(centre_x + (glyph_left + (float)glyph->width) * scale_x) + 1;
-        const int first_y = (int)floorf(baseline_y + glyph_top * scale_y) - 1;
-        const int last_y = (int)ceilf(baseline_y + (glyph_top + (float)glyph->height) * scale_y) + 1;
+                const float source_x = (sample_x - centre_x) / scale_x - glyph_left;
+                const float source_y = (sample_y - baseline_y) / scale_y - glyph_top;
 
-        for (int y = first_y; y <= last_y; y++) {
-            for (int x = first_x; x <= last_x; x++) {
-                float coverage = 0.0f;
-                for (int sub = 0; sub < subsamples; sub++) {
-                    const float shift = -0.5f + (0.5f + (float)sub) / (float)subsamples;
-                    const float sample_x = along_x ? (float)x + shift : (float)x;
-                    const float sample_y = along_x ? (float)y : (float)y + shift;
+                coverage += sample_coverage(font, glyph, source_x, source_y);
+            }
 
-                    const float source_x = (sample_x - centre_x) / scale_x - glyph_left;
-                    const float source_y = (sample_y - baseline_y) / scale_y - glyph_top;
-
-                    coverage += sample_coverage(font, glyph, source_x, source_y);
-                }
-
-                coverage /= (float)subsamples;
-                if (coverage > 0.5f) {
-                    canvas_blend(x, y, color, canvas_scale((uint8_t)coverage, alpha));
-                }
+            coverage /= (float)subsamples;
+            if (coverage > 0.5f) {
+                canvas_blend(x, y, color, canvas_scale((uint8_t)coverage, alpha));
             }
         }
-
-        pen += (float)glyph->advance;
     }
 }
 

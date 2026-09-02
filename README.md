@@ -94,7 +94,7 @@ make check                                         # run the test suite
 make boot                                          # boot.gif
 make menu                                          # menu.gif
 make reveal                                        # reveal.gif
-make reveal ANSWER=NO MODIFIER=- THEME=parchment
+make reveal ANSWER=NO MODIFIER=-
 make reveal ANSWER=87 MODIFIER=- CAPTION=D100
 ```
 

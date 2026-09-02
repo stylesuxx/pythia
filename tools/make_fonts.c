@@ -29,6 +29,64 @@
 #define BOOT_WORDMARK_CHARACTERS "PYTHIA/0123456789ABCDEFXZ#%&"
 #define BOOT_CAPTION_CHARACTERS "DELPHI SYSTEMS"
 
+// Decodes one UTF-8 sequence and steps the cursor past it, so a character set
+// can name a symbol above ASCII. Malformed input yields the lead byte, which
+// then finds no glyph in the typeface and drops out.
+static uint32_t next_codepoint(const char **cursor) {
+    const unsigned char lead = (unsigned char)**cursor;
+    int trailing = 0;
+    uint32_t codepoint = lead;
+
+    if (lead >= 0xF0) {
+        trailing = 3;
+        codepoint = lead & 0x07u;
+    } else if (lead >= 0xE0) {
+        trailing = 2;
+        codepoint = lead & 0x0Fu;
+    } else if (lead >= 0xC0) {
+        trailing = 1;
+        codepoint = lead & 0x1Fu;
+    }
+
+    (*cursor)++;
+    for (int index = 0; index < trailing; index++) {
+        if (((unsigned char)**cursor & 0xC0u) != 0x80u) {
+            return lead;
+        }
+
+        codepoint = (codepoint << 6) | ((unsigned char)**cursor & 0x3Fu);
+        (*cursor)++;
+    }
+
+    return codepoint;
+}
+
+static int compare_codepoints(const void *left, const void *right) {
+    const uint32_t first = *(const uint32_t *)left;
+    const uint32_t second = *(const uint32_t *)right;
+    return (first > second) - (first < second);
+}
+
+// The character set in ascending order with duplicates collapsed, which is the
+// order font_find_glyph() binary searches.
+static int sorted_codepoints(const char *characters, uint32_t *out, int capacity) {
+    int count = 0;
+    for (const char *cursor = characters; *cursor != '\0' && count < capacity;) {
+        out[count++] = next_codepoint(&cursor);
+    }
+
+    qsort(out, (size_t)count, sizeof(*out), compare_codepoints);
+
+    int unique = 0;
+    for (int index = 0; index < count; index++) {
+        if (unique == 0 || out[index] != out[unique - 1]) {
+            out[unique++] = out[index];
+        }
+    }
+
+    return unique;
+}
+
 typedef struct {
     const char *name;
     const char *typeface;
@@ -43,14 +101,11 @@ static const font_spec_t FONTS[] = {
     {"font_midnight_number", "DejaVuSans-Bold.ttf", 120, NUMBER_CHARACTERS},
     {"font_midnight_label", "DejaVuSans-Bold.ttf", 44, LABEL_CHARACTERS},
     {"font_midnight_caption", "DejaVuSans-Bold.ttf", 28, LABEL_CHARACTERS},
-    {"font_parchment_answer", "DejaVuSerif-Bold.ttf", 96, ANSWER_CHARACTERS},
-    {"font_parchment_number", "DejaVuSerif-Bold.ttf", 120, NUMBER_CHARACTERS},
-    {"font_parchment_label", "DejaVuSerif-Bold.ttf", 44, LABEL_CHARACTERS},
-    {"font_parchment_caption", "DejaVuSerif-Bold.ttf", 28, LABEL_CHARACTERS},
 };
 
 #define FONT_COUNT (sizeof(FONTS) / sizeof(FONTS[0]))
 #define BYTES_PER_LINE 20
+#define MAX_CHARACTERS 128
 
 typedef struct {
     uint8_t *data;
@@ -159,23 +214,29 @@ static bool generate_font(const font_spec_t *spec, const char *output_directory)
     byte_buffer_t glyph_rows = {0};
     int glyph_count = 0;
 
-    // Walking ASCII in order yields the glyph table sorted by codepoint with
-    // duplicates in the character set collapsed.
-    for (int codepoint = 0; codepoint < 128; codepoint++) {
-        if (codepoint == 0 || strchr(spec->characters, codepoint) == NULL) {
-            continue;
-        }
+    uint32_t codepoints[MAX_CHARACTERS];
+    const int wanted = sorted_codepoints(spec->characters, codepoints, MAX_CHARACTERS);
+
+    for (int index = 0; index < wanted; index++) {
+        const uint32_t codepoint = codepoints[index];
 
         int width, height, left, top_offset;
-        uint8_t *bitmap = stbtt_GetCodepointBitmap(&info, scale, scale, codepoint,
+        uint8_t *bitmap = stbtt_GetCodepointBitmap(&info, scale, scale, (int)codepoint,
                                                    &width, &height, &left, &top_offset);
         int advance_units, left_bearing_units;
-        stbtt_GetCodepointHMetrics(&info, codepoint, &advance_units, &left_bearing_units);
+        stbtt_GetCodepointHMetrics(&info, (int)codepoint, &advance_units, &left_bearing_units);
+
+        char label[16];
+        if (codepoint < 128) {
+            snprintf(label, sizeof(label), "'%c'", (char)codepoint);
+        } else {
+            snprintf(label, sizeof(label), "U+%04X", codepoint);
+        }
 
         char row[128];
-        snprintf(row, sizeof(row), "    {0x%02x, %d, %d, %d, %d, %d, %zu},  // '%c'\n",
+        snprintf(row, sizeof(row), "    {0x%04x, %d, %d, %d, %d, %d, %zu},  // %s\n",
                  codepoint, width, height, left, -top_offset,
-                 (int)lroundf((float)advance_units * scale), coverage.size, codepoint);
+                 (int)lroundf((float)advance_units * scale), coverage.size, label);
         for (const char *character = row; *character; character++) {
             buffer_append(&glyph_rows, (uint8_t)*character);
         }
