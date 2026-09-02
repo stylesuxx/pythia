@@ -1,9 +1,7 @@
 # PYTHIA//
 
-**Handheld Divination Terminal**
-
-Delphi Systems, Oracle Products Division
-
+**Handheld Divination Terminal**<br />
+Delphi Systems, Oracle Products Division<br />
 Owner's Manual, firmware series 0
 
 > Thank you for choosing *PYTHIA//*. Your terminal has been calibrated at the factory to deliver answers with no bias toward any outcome, including the one you were hoping for. Please read this manual before consulting the oracle.
@@ -25,23 +23,18 @@ On power-up the terminal runs its self-test. After about five seconds the termin
 
 ## 3. Examples
 
-The animations below are rendered by the host preview from the same code the terminal runs, so they show what the panel draws.
+Every animation below is rendered by the host preview from the same code the terminal runs, so what you see is what the panel draws, down to RGB565 quantisation.
 
-The self-test:
-
-![Power-on self-test](resources/boot.gif)
-
-One full turn of the knob:
-
-![Die list](resources/menu.gif)
-
-A D100 roll
-
-![D100 roll](resources/d100.gif)
-
-An oracle consultation:
-
-![Oracle reveal](resources/reveal.gif)
+<table>
+<tr>
+<td align="center"><img src="resources/boot.gif" width="330" alt="Power-on self-test animation"><br /><b>Self-test</b></td>
+<td align="center"><img src="resources/menu.gif" width="330" alt="Turning the knob through the die list"><br /><b>Die list</b></td>
+</tr>
+<tr>
+<td align="center"><img src="resources/d100.gif" width="330" alt="A D100 roll landing on 87"><br /><b>D100 roll</b></td>
+<td align="center"><img src="resources/reveal.gif" width="330" alt="An oracle consultation answering YES, AND"><br /><b>Oracle</b></td>
+</tr>
+</table>
 
 ## 4. Divination modes
 
