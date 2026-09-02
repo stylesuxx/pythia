@@ -1,14 +1,16 @@
 # PYTHIA//
 
 **Handheld Divination Terminal**
+
 Delphi Systems, Oracle Products Division
+
 Owner's Manual, firmware series 0
 
-Thank you for choosing PYTHIA//. Your terminal has been calibrated at the factory to deliver answers with no bias toward any outcome, including the one you were hoping for. Please read this manual before consulting the oracle.
+> Thank you for choosing *PYTHIA//*. Your terminal has been calibrated at the factory to deliver answers with no bias toward any outcome, including the one you were hoping for. Please read this manual before consulting the oracle.
 
 ## 1. Overview
 
-PYTHIA// is a single-purpose terminal for tabletop play. It rolls dice and it answers yes/no questions. It does nothing else, and it does those two things with hardware-grade randomness that no polyhedral die can match.
+*PYTHIA//* is a single-purpose terminal for tabletop play. It rolls dice and it answers yes/no questions. It does nothing else, and it does those two things with hardware-grade randomness that no polyhedral die can match.
 
 The unit ships as a Waveshare ESP32-S3-Knob-Touch-LCD-1.8: a 360x360 round touch display set into a rotary knob, driven by an ESP32-S3 with 16 MB of flash and 8 MB of PSRAM. Rotation and touch are the only controls, and the only ones you will need.
 
@@ -29,15 +31,15 @@ The self-test:
 
 ![Power-on self-test](resources/boot.gif)
 
-One full turn of the knob. The tick ring marks the position in the list, and the highlight returns to where it started after ten detents:
+One full turn of the knob:
 
 ![Die list](resources/menu.gif)
 
-A D100 roll. The result arrives from the left and stays until the next touch, with the die name held at the rim:
+A D100 roll
 
 ![D100 roll](resources/d100.gif)
 
-An oracle consultation answering YES, AND. The answer lands centred, and only after a fixed pause does the modifier arrive from the right, so nothing before it reveals whether one is coming:
+An oracle consultation:
 
 ![Oracle reveal](resources/reveal.gif)
 
@@ -71,7 +73,7 @@ make monitor
 
 No third-party source is kept in this repository. `make deps` fetches the ST77916 panel driver and the font rasteriser, each pinned to a version and checked against a recorded hash, and `make firmware` runs it for you.
 
-**CAUTION.** The USB-C port on this chassis reaches one of two processors depending on cable orientation. If the host enumerates a CH340 serial adapter on `/dev/ttyUSB*`, you are connected to the audio co-processor. Unplug the cable, flip it, and reconnect. PYTHIA// lives on the ESP32-S3, which enumerates on `/dev/ttyACM*`.
+**CAUTION.** The USB-C port on this chassis reaches one of two processors depending on cable orientation. If the host enumerates a CH340 serial adapter on `/dev/ttyUSB*`, you are connected to the audio co-processor. Unplug the cable, flip it, and reconnect. *PYTHIA//* lives on the ESP32-S3, which enumerates on `/dev/ttyACM*`.
 
 The oracle reveal can be previewed on a workstation without the unit attached:
 
@@ -87,4 +89,4 @@ What it renders is what the panel draws, down to RGB565 quantisation. Each targe
 
 ## 7. Notices
 
-PYTHIA// is a decision aid. Delphi Systems accepts no liability for characters lost, campaigns derailed, or plans abandoned on the strength of a BUT.
+*PYTHIA//* is a decision aid. Delphi Systems accepts no liability for characters lost, campaigns derailed, or plans abandoned on the strength of a BUT.
