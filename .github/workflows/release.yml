@@ -1,0 +1,37 @@
+# Builds the firmware for a pushed v* tag and attaches the merged flash image
+# to that tag's GitHub release, creating the release when it does not exist.
+name: release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      # Pinned to the PlatformIO Core version the firmware is built with
+      # locally, so CI and a developer machine run the same toolchain.
+      - name: Install PlatformIO
+        run: pip install platformio==6.1.19
+
+      - name: Build the flash image
+        run: make release PIO=pio ESPTOOL="python $HOME/.platformio/packages/tool-esptoolpy/esptool.py"
+
+      - name: Attach to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 \
+            || gh release create "$GITHUB_REF_NAME" --verify-tag --generate-notes
+          gh release upload "$GITHUB_REF_NAME" pythia.bin --clobber

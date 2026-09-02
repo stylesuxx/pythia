@@ -9,6 +9,7 @@
 #   make fonts               regenerate src/generated from the DejaVu faces
 #   make deps                fetch the third-party sources (none are committed)
 #   make firmware            deps, then PlatformIO
+#   make release             firmware, merged into one image for web flashers
 #   make upload PORT=/dev/ttyACM1
 #   make clean               remove build output
 #   make distclean           also remove the fetched driver
@@ -71,6 +72,7 @@ STB_TRUETYPE_SHA256 := ecd30b05e0dd4fea3a13c26810dd9e1992dc379049482c393d5a19e6b
 STB_TRUETYPE := tools/host/third_party/stb_truetype.h
 
 PIO ?= $(HOME)/.platformio/penv/bin/pio
+ESPTOOL ?= $(HOME)/.platformio/penv/bin/python $(HOME)/.platformio/packages/tool-esptoolpy/esptool.py
 PORT ?=
 UPLOAD_PORT_FLAG := $(if $(PORT),--upload-port $(PORT),)
 
@@ -82,7 +84,13 @@ REVEAL_GIF ?= reveal.gif
 BOOT_GIF ?= boot.gif
 MENU_GIF ?= menu.gif
 
-.PHONY: all preview check reveal boot menu fonts deps firmware upload monitor clean distclean
+# The release image is the four parts `pio run -t upload` writes, laid out at
+# their flash offsets, so a web flasher writes the whole thing at address 0.
+FIRMWARE_DIR := .pio/build/knob
+BOOT_APP0 := $(HOME)/.platformio/packages/framework-arduinoespressif32/tools/partitions/boot_app0.bin
+RELEASE_BIN ?= pythia.bin
+
+.PHONY: all preview check reveal boot menu fonts deps firmware release upload monitor clean distclean
 
 # Test objects are reached through a pattern rule chain, and make would delete
 # them as intermediates after every run, rebuilding them the next time.
@@ -151,6 +159,14 @@ $(BUILD)/tools/make_fonts.o: $(STB_TRUETYPE)
 firmware: deps
 	$(PIO) run
 
+release: firmware
+	$(ESPTOOL) --chip esp32s3 merge_bin --output $(RELEASE_BIN) \
+	    --flash_mode dio --flash_freq 80m --flash_size 16MB \
+	    0x0 $(FIRMWARE_DIR)/bootloader.bin \
+	    0x8000 $(FIRMWARE_DIR)/partitions.bin \
+	    0xe000 $(BOOT_APP0) \
+	    0x10000 $(FIRMWARE_DIR)/firmware.bin
+
 upload: deps
 	$(PIO) run -t upload $(UPLOAD_PORT_FLAG)
 
@@ -158,7 +174,7 @@ monitor:
 	$(PIO) device monitor -b 115200
 
 clean:
-	rm -rf $(BUILD)
+	rm -rf $(BUILD) $(RELEASE_BIN)
 
 distclean: clean
 	rm -rf $(ST77916_DIR) $(dir $(STB_TRUETYPE))
