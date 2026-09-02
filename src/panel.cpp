@@ -1,0 +1,123 @@
+#include "panel.h"
+
+#include <Arduino.h>
+
+#include "canvas.h"
+#include "driver/spi_master.h"
+#include "esp_heap_caps.h"
+#include "esp_lcd_panel_io.h"
+#include "esp_lcd_panel_ops.h"
+#include "esp_lcd_st77916.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/semphr.h"
+#include "knob_lcd_init.h"
+#include "knob_pins.h"
+#include "settings.h"
+
+// One band per DMA transfer. 360x40 keeps the staging buffer under 29 KB of
+// internal RAM and divides the panel height exactly.
+#define PANEL_BAND_LINES 40
+
+static esp_lcd_panel_handle_t panel = NULL;
+static uint16_t *band = NULL;
+static SemaphoreHandle_t band_sent = NULL;
+
+static bool on_band_sent(esp_lcd_panel_io_handle_t io,
+                         esp_lcd_panel_io_event_data_t *event_data,
+                         void *user_context) {
+    BaseType_t woke_higher_priority_task = pdFALSE;
+    xSemaphoreGiveFromISR(band_sent, &woke_higher_priority_task);
+    return woke_higher_priority_task == pdTRUE;
+}
+
+bool panel_begin(void) {
+    band_sent = xSemaphoreCreateBinary();
+    band = (uint16_t *)heap_caps_malloc(
+        (size_t)CANVAS_WIDTH * PANEL_BAND_LINES * sizeof(uint16_t), MALLOC_CAP_DMA);
+    if (band_sent == NULL || band == NULL) {
+        Serial.println("panel: no DMA memory for the staging band");
+        return false;
+    }
+
+    // ST77916_PANEL_BUS_QSPI_CONFIG orders .sclk_io_num before .data0_io_num,
+    // but spi_bus_config_t declares data0 first and C++ requires designated
+    // initialisers in declaration order, so this is filled out by hand.
+    spi_bus_config_t bus_config = {};
+    bus_config.data0_io_num = PIN_LCD_D0;
+    bus_config.data1_io_num = PIN_LCD_D1;
+    bus_config.sclk_io_num = PIN_LCD_CLK;
+    bus_config.data2_io_num = PIN_LCD_D2;
+    bus_config.data3_io_num = PIN_LCD_D3;
+    bus_config.max_transfer_sz = CANVAS_WIDTH * PANEL_BAND_LINES * sizeof(uint16_t);
+    ESP_ERROR_CHECK(spi_bus_initialize(SPI2_HOST, &bus_config, SPI_DMA_CH_AUTO));
+
+    esp_lcd_panel_io_handle_t io = NULL;
+    const esp_lcd_panel_io_spi_config_t io_config =
+        ST77916_PANEL_IO_QSPI_CONFIG(PIN_LCD_CS, on_band_sent, NULL);
+    ESP_ERROR_CHECK(
+        esp_lcd_new_panel_io_spi((esp_lcd_spi_bus_handle_t)SPI2_HOST, &io_config, &io));
+
+    st77916_vendor_config_t vendor_config = {
+        .init_cmds = lcd_init_cmds,
+        .init_cmds_size = sizeof(lcd_init_cmds) / sizeof(lcd_init_cmds[0]),
+        .flags = {.use_qspi_interface = 1},
+    };
+    const esp_lcd_panel_dev_config_t panel_config = {
+        .reset_gpio_num = PIN_LCD_RST,
+        .rgb_ele_order = LCD_RGB_ELEMENT_ORDER_RGB,
+        .bits_per_pixel = LCD_BPP,
+        .vendor_config = &vendor_config,
+    };
+    ESP_ERROR_CHECK(esp_lcd_new_panel_st77916(io, &panel_config, &panel));
+    ESP_ERROR_CHECK(esp_lcd_panel_reset(panel));
+    ESP_ERROR_CHECK(esp_lcd_panel_init(panel));
+
+    ledcAttach(PIN_LCD_BL, 50000, 8);
+    panel_set_backlight(0);
+
+    return true;
+}
+
+void panel_present(const uint16_t *pixels) {
+    panel_present_rows(pixels, 0, CANVAS_HEIGHT);
+}
+
+void panel_present_rows(const uint16_t *pixels, int top, int height) {
+    int first = top & ~1;
+    int last = (top + height + 1) & ~1;
+    if (first < 0) {
+        first = 0;
+    }
+
+    if (last > CANVAS_HEIGHT) {
+        last = CANVAS_HEIGHT;
+    }
+
+    const bool rotated = settings_is_display_rotated();
+
+    for (int row = first; row < last; row += PANEL_BAND_LINES) {
+        const int lines = (row + PANEL_BAND_LINES <= last) ? PANEL_BAND_LINES : (last - row);
+        const uint16_t *source = pixels + (size_t)row * CANVAS_WIDTH;
+        const size_t count = (size_t)CANVAS_WIDTH * lines;
+
+        if (rotated) {
+            // Half a turn is the band read backwards, landing on the mirrored rows.
+            const uint16_t *tail = source + count;
+            for (size_t index = 0; index < count; index++) {
+                band[index] = __builtin_bswap16(*(--tail));
+            }
+        } else {
+            for (size_t index = 0; index < count; index++) {
+                band[index] = __builtin_bswap16(source[index]);
+            }
+        }
+
+        const int top_row = rotated ? (CANVAS_HEIGHT - row - lines) : row;
+        esp_lcd_panel_draw_bitmap(panel, 0, top_row, CANVAS_WIDTH, top_row + lines, band);
+        xSemaphoreTake(band_sent, portMAX_DELAY);
+    }
+}
+
+void panel_set_backlight(uint8_t level) {
+    ledcWrite(PIN_LCD_BL, level);
+}
