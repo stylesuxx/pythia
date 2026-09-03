@@ -4,19 +4,16 @@
 #include <stddef.h>
 
 #include "render/canvas.h"
-#include "scenes/effects/effect.h"
 #include "haptics.h"
 #include "render/theme.h"
 
 /**
- * Both faces share one optical centre: YES and NO stand 70 rows tall on their
- * baseline, the digits 92 rows on theirs.
+ * YES and NO stand 70 rows tall on this baseline, sharing one optical centre
+ * with the digits of a numeric result, and the band is the rows either can
+ * reach, the modifier included.
  */
 #define ANSWER_BASELINE 212
-#define NUMBER_BASELINE 223
 #define MODIFIER_GAP 20
-
-// Rows the two faces and the modifier can reach at those baselines.
 #define STAGE_TOP 124
 #define STAGE_HEIGHT 110
 
@@ -35,25 +32,8 @@
 #define ANSWER_THUMP_MS (ANSWER_SLIDE_MS - 60)
 #define MODIFIER_THUMP_MS (BEAT_TWO_MS + 90)
 
-/**
- * Frames keep coming this long after a numeric effect reaches its rest. The
- * frame drawn at or after the rest is the one that stays on the panel, and
- * frames are paced at an interval, so stopping exactly at the rest could leave
- * the last moving frame standing.
- */
-#define EFFECT_SETTLE_MS 32
-
 static roll_t current_roll;
 static uint32_t started_ms = 0;
-
-/**
- * A numeric result is handed to the chosen effect. The oracle keeps its own
- * choreography below, so the setting can never touch it.
- */
-extern const effect_t EFFECT_SLIDE;
-static const effect_t *effect = &EFFECT_SLIDE;
-static uint8_t effect_index = 0;
-static effect_subject_t subject;
 
 static const font_t *answer_font = NULL;
 static float answer_entry_x = 0.0f;
@@ -103,26 +83,6 @@ static float ease_out_back(float t) {
            tension * inverse * inverse;
 }
 
-static bool is_oracle(void) {
-    return current_roll.kind == DIE_ORACLE;
-}
-
-static void begin_effect(const theme_t *theme, uint32_t seed) {
-    subject.font = theme->number_font;
-    subject.text = current_roll.answer;
-    subject.width = font_text_width(subject.font, subject.text);
-    subject.left = (CANVAS_WIDTH - subject.width) / 2;
-    subject.baseline = NUMBER_BASELINE;
-    subject.stage = reveal_stage();
-
-    effect = EFFECTS[effect_index];
-    effect->begin(&subject, seed);
-}
-
-void reveal_select_effect(uint8_t index) {
-    effect_index = index < EFFECT_COUNT ? index : 0;
-}
-
 void reveal_begin(const roll_t *roll, uint32_t now) {
     const theme_t *theme = theme_active();
 
@@ -130,11 +90,6 @@ void reveal_begin(const roll_t *roll, uint32_t now) {
     started_ms = now;
     answer_thumped = false;
     modifier_thumped = false;
-
-    if (!is_oracle()) {
-        begin_effect(theme, now);
-        return;
-    }
 
     answer_font = theme->answer_font;
 
@@ -159,11 +114,6 @@ void reveal_begin(const roll_t *roll, uint32_t now) {
 void reveal_tick(uint32_t now) {
     const uint32_t elapsed = now - started_ms;
 
-    if (!is_oracle()) {
-        effect->tick(elapsed);
-        return;
-    }
-
     if (!answer_thumped && elapsed >= ANSWER_THUMP_MS) {
         answer_thumped = true;
         haptics_play(HAPTIC_ANSWER);
@@ -180,11 +130,6 @@ void reveal_tick(uint32_t now) {
 void reveal_draw(uint32_t now, uint8_t alpha) {
     const theme_t *theme = theme_active();
     const uint32_t elapsed = now - started_ms;
-
-    if (!is_oracle()) {
-        effect->draw(&subject, elapsed, alpha);
-        return;
-    }
 
     float answer_x;
     if (elapsed < ANSWER_SLIDE_MS) {
@@ -214,14 +159,9 @@ frame_rect_t reveal_stage(void) {
 }
 
 bool reveal_is_animating(uint32_t now) {
-    const uint32_t elapsed = now - started_ms;
-    if (!is_oracle()) {
-        return elapsed < effect->duration_ms + EFFECT_SETTLE_MS;
-    }
-
-    return elapsed < REVEAL_TOTAL_MS;
+    return (now - started_ms) < REVEAL_TOTAL_MS;
 }
 
 bool reveal_is_concealed(uint32_t now) {
-    return is_oracle() && (now - started_ms) < BEAT_TWO_MS;
+    return (now - started_ms) < BEAT_TWO_MS;
 }

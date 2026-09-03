@@ -11,14 +11,15 @@ extern "C" {
 #endif
 
 /*
- * What a roll puts on screen: the reveal for the oracle and the numeric dice,
- * the coin for D2 (if enabled).
+ * What a roll puts on screen: the reveal for the oracle, the coin for D2
+ * while the coin is enabled, and an effect for every other result.
  *
  * The stage picks once, when the roll happens, and everything after goes to
  * what it picked, so only what was begun is ever ticked, drawn or asked for
- * its rows.
+ * its rows. It is the one place a roll's kind becomes a drawing.
  */
 
+// The effect index names a row of EFFECTS; one past the table is the first.
 void stage_configure(bool coin_enabled, uint8_t effect_index);
 void stage_begin(const roll_t *roll, uint32_t now);
 void stage_draw(uint32_t now, uint8_t alpha);

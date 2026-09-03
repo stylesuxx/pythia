@@ -10,7 +10,6 @@
 #include "scenes/menu.h"
 #include "oracle.h"
 #include "power.h"
-#include "scenes/reveal.h"
 #include "settings.h"
 #include "stage.h"
 #include "render/theme.h"

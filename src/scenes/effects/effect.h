@@ -13,20 +13,23 @@ extern "C" {
  * How a numeric result arrives on screen. Every effect brings the same subject
  * to the same rest; what differs is the way there.
  *
- * EFFECTS in effects.c is what the effect setting indexes, so adding one isz
+ * EFFECTS in effects.c is what the effect setting indexes, so adding one is
  * a file in this directory defining an effect_t and a row in the table.
  *
- * tests/reveal.c holds every row to the promises below.
+ * tests/stage.c holds every row to the promises below.
  */
 
 /**
- * A result at rest: the text, the face it is set in, and where it stands. The
- * stage is the band of rows a frame repaints for it; an effect must keep every
- * pixel it touches inside.
+ * A result at rest: the text, the face and colour it is set in, and where it
+ * stands. The stage is the band of rows a frame repaints for it, filled with
+ * background before the effect draws; an effect must keep every pixel it
+ * touches inside.
  */
 typedef struct {
     const font_t *font;
     const char *text;
+    uint16_t color;
+    uint16_t background;
     int left; // pen x, centred on the panel
     int baseline;
     int width;

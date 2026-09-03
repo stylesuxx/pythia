@@ -11,7 +11,6 @@
 #include "scenes/effects/effect.h"
 #include "scenes/glitch.h"
 #include "haptics.h"
-#include "render/theme.h"
 
 /**
  * The boot's own tear at its own pace, with the shift scaled from the
@@ -86,12 +85,11 @@ static void tear_tick(uint32_t elapsed) {
 }
 
 static void tear_draw(const effect_subject_t *subject, uint32_t elapsed, uint8_t alpha) {
-    const theme_t *theme = theme_active();
-    canvas_text(subject->font, subject->text, subject->left, subject->baseline, theme->numbers.text,
+    canvas_text(subject->font, subject->text, subject->left, subject->baseline, subject->color,
                 alpha);
 
     if (elapsed < TEAR_MS) {
-        glitch_tear(&tear, tear_seed, elapsed / TEAR_STEP_MS, theme->colors.background);
+        glitch_tear(&tear, tear_seed, elapsed / TEAR_STEP_MS, subject->background);
     }
 }
 

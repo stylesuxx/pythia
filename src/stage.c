@@ -3,6 +3,8 @@
 #include <stddef.h>
 
 #include "scenes/coin.h"
+#include "scenes/effects/effect.h"
+#include "scenes/numeric.h"
 #include "scenes/reveal.h"
 
 typedef struct {
@@ -13,6 +15,12 @@ typedef struct {
     bool (*is_animating)(uint32_t now);
     bool rerolled_in_place;
 } stage_adapter_t;
+
+static uint8_t effect_index = 0;
+
+static void numeric_begin_with_effect(const roll_t *roll, uint32_t now) {
+    numeric_begin(roll, EFFECTS[effect_index], now);
+}
 
 static void coin_begin(const roll_t *roll, uint32_t now) {
     coin_flip(roll->value, now);
@@ -28,6 +36,15 @@ static const stage_adapter_t REVEAL_ADAPTER = {
     .draw = reveal_draw,
     .rect = reveal_stage,
     .is_animating = reveal_is_animating,
+    .rerolled_in_place = false,
+};
+
+static const stage_adapter_t NUMERIC_ADAPTER = {
+    .begin = numeric_begin_with_effect,
+    .tick = numeric_tick,
+    .draw = numeric_draw,
+    .rect = numeric_stage,
+    .is_animating = numeric_is_animating,
     .rerolled_in_place = false,
 };
 
@@ -47,15 +64,25 @@ static const stage_adapter_t COIN_ADAPTER = {
 static const stage_adapter_t *current = &REVEAL_ADAPTER;
 static bool coin_enabled = true;
 
-void stage_configure(bool enabled, uint8_t effect_index) {
+void stage_configure(bool enabled, uint8_t index) {
     coin_enabled = enabled;
-    reveal_select_effect(effect_index);
+    effect_index = index < EFFECT_COUNT ? index : 0;
 }
 
 void stage_begin(const roll_t *roll, uint32_t now) {
-    current = &REVEAL_ADAPTER;
-    if (roll->kind == DIE_COIN && coin_enabled) {
-        current = &COIN_ADAPTER;
+    switch (roll->kind) {
+        case DIE_ORACLE: {
+            current = &REVEAL_ADAPTER;
+        } break;
+
+        case DIE_COIN: {
+            current = coin_enabled ? &COIN_ADAPTER : &NUMERIC_ADAPTER;
+        } break;
+
+        case DIE_NUMERIC:
+        case DIE_D66: {
+            current = &NUMERIC_ADAPTER;
+        } break;
     }
 
     current->begin(roll, now);

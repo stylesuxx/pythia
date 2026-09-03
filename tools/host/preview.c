@@ -17,7 +17,7 @@
 #include "esp_random.h"
 #include "mode.h"
 #include "oracle.h"
-#include "scenes/reveal.h"
+#include "stage.h"
 #include "settings.h"
 #include "render/theme.h"
 
@@ -167,12 +167,12 @@ static int render_reveal(const char *answer, const char *modifier, const char *c
     roll.kind = (strcmp(answer, "YES") == 0 || strcmp(answer, "NO") == 0) ? DIE_ORACLE
                                                                            : DIE_NUMERIC;
 
-    reveal_select_effect(preview_effect);
-    reveal_begin(&roll, 0);
+    stage_configure(false, preview_effect);
+    stage_begin(&roll, 0);
     int frames = 0;
     for (uint32_t now = 0; now <= 1600; now += FRAME_INTERVAL_MS) {
         canvas_fill(theme_active()->colors.background);
-        reveal_draw(now, 255);
+        stage_draw(now, 255);
         caption_draw(caption, 255);
         if (!encode_frame(gif)) {
             return -1;

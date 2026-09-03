@@ -9,7 +9,6 @@
 #include "render/canvas.h"
 #include "scenes/effects/effect.h"
 #include "haptics.h"
-#include "render/theme.h"
 
 #define SLIDE_MS 380
 #define ENTRY_GAP 40
@@ -46,8 +45,8 @@ static void slide_draw(const effect_subject_t *subject, uint32_t elapsed, uint8_
         x = entry_x + ((float)subject->left - entry_x) * progress;
     }
 
-    canvas_text(subject->font, subject->text, (int)lroundf(x), subject->baseline,
-                theme_active()->numbers.text, alpha);
+    canvas_text(subject->font, subject->text, (int)lroundf(x), subject->baseline, subject->color,
+                alpha);
 }
 
 const effect_t EFFECT_SLIDE = {

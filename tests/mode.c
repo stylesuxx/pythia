@@ -12,12 +12,13 @@
 #include "render/canvas.h"
 #include "scenes/coin.h"
 #include "scenes/effects/effect.h"
+#include "scenes/numeric.h"
 #include "haptics.h"
 #include "mode.h"
 #include "oracle.h"
 #include "power.h"
-#include "scenes/reveal.h"
 #include "settings.h"
+#include "stage.h"
 
 #define STEP_MS 2
 #define BOOT_LIMIT_MS 10000
@@ -80,8 +81,9 @@ static bool is_whole(frame_rect_t rows) {
     return rows.top == 0 && rows.height == CANVAS_HEIGHT;
 }
 
+// The rows a roll pushes are exactly what is on stage.
 static bool is_stage(frame_rect_t rows) {
-    const frame_rect_t stage = reveal_stage();
+    const frame_rect_t stage = stage_get_rect();
     return rows.top == stage.top && rows.height == stage.height;
 }
 
@@ -263,8 +265,8 @@ static void check_the_coin_can_be_switched_off(void) {
     }
 
     const frame_rect_t thrown = coin_stage();
-    const frame_rect_t printed = reveal_stage();
-    EXPECT(thrown.top != printed.top, "the coin and the reveal claim the same stage");
+    const frame_rect_t printed = numeric_stage();
+    EXPECT(thrown.top != printed.top, "the coin and the numeric result claim one stage");
 
     for (int enabled = 1; enabled >= 0; enabled--) {
         coin_setting = enabled != 0;

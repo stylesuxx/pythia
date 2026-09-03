@@ -8,12 +8,6 @@
  * Every millisecond of every outcome is rendered in every theme, because the
  * device draws at arbitrary instants and a coarser sample could miss a
  * one-frame leak. The exit status is the verdict.
- *
- * Numeric results arrive through whichever effect the setting names, and every
- * effect in the table is held to the same promises: it stays inside the stage
- * from any start instant, it lands on the same rest as every other effect, the
- * last frame drawn before frames stop is that rest, it plays exactly one cue,
- * and it leaves the oracle's frames and cues untouched.
  */
 
 #include <stdarg.h>
@@ -23,13 +17,11 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "render/canvas.h"
-#include "scenes/effects/effect.h"
 #include "haptics.h"
 #include "oracle.h"
-#include "scenes/reveal.h"
-#include "settings.h"
+#include "render/canvas.h"
 #include "render/theme.h"
+#include "scenes/reveal.h"
 
 #define STEP_MS 1
 #define FRAME_ALPHA 255
@@ -60,27 +52,6 @@ void haptics_play(uint8_t effect) {
     recording->cues[recording->count].at_ms = recording_now;
     recording->count++;
 }
-
-// The effect setting, scripted so every effect in the table gets its turn.
-
-// Numeric results at each digit count, and the D66 that shares the face.
-static const roll_t NUMERIC_ROLLS[] = {
-    {.kind = DIE_NUMERIC, .answer = "1", .modifier = NULL},
-    {.kind = DIE_NUMERIC, .answer = "17", .modifier = NULL},
-    {.kind = DIE_NUMERIC, .answer = "100", .modifier = NULL},
-    {.kind = DIE_D66, .answer = "66", .modifier = NULL},
-};
-#define NUMERIC_ROLL_COUNT (sizeof(NUMERIC_ROLLS) / sizeof(NUMERIC_ROLLS[0]))
-
-// Instants a roll may begin at, one of them within reach of the clock's wrap.
-static const uint32_t START_TIMES[] = {0, 1, 777, UINT32_MAX - 100};
-#define START_TIME_COUNT (sizeof(START_TIMES) / sizeof(START_TIMES[0]))
-
-// Longer than any effect, so a frame this far in is the effect at rest.
-#define LONG_AFTER_MS 60000
-
-// The widest frame interval the device paces at.
-#define DEVICE_FRAME_MS 16
 
 static int failures = 0;
 
@@ -301,219 +272,6 @@ static void check_stage_band(const theme_t *theme, const roll_t *roll, uint32_t 
     }
 }
 
-static bool is_background_only(const theme_t *theme) {
-    const uint16_t *pixels = canvas_pixels();
-    for (size_t index = 0; index < (size_t)CANVAS_WIDTH * CANVAS_HEIGHT; index++) {
-        if (pixels[index] != theme->colors.background) {
-            return false;
-        }
-    }
-
-    return true;
-}
-
-static void render_rest(const theme_t *theme, const roll_t *roll, uint32_t start) {
-    reveal_begin(roll, start);
-    canvas_fill(theme->colors.background);
-    reveal_draw(start + LONG_AFTER_MS, FRAME_ALPHA);
-}
-
-// Every effect lands on the same rest, and that rest shows the number.
-static void check_effects_share_a_rest(const theme_t *theme) {
-    const size_t frame_bytes = (size_t)CANVAS_WIDTH * CANVAS_HEIGHT * sizeof(uint16_t);
-    uint16_t *reference = malloc(frame_bytes);
-
-    for (size_t index = 0; index < NUMERIC_ROLL_COUNT; index++) {
-        const roll_t *roll = &NUMERIC_ROLLS[index];
-
-        reveal_select_effect(0);
-        render_rest(theme, roll, 0);
-        if (is_background_only(theme)) {
-            fail("%s: %s rests on an empty frame under %s", theme->name, describe(roll),
-                 EFFECTS[0]->name);
-        }
-        memcpy(reference, canvas_pixels(), frame_bytes);
-
-        for (uint8_t effect = 1; effect < EFFECT_COUNT; effect++) {
-            reveal_select_effect(effect);
-            render_rest(theme, roll, 0);
-            if (memcmp(reference, canvas_pixels(), frame_bytes) != 0) {
-                fail("%s: %s rests differently under %s than under %s", theme->name,
-                     describe(roll), EFFECTS[effect]->name, EFFECTS[0]->name);
-            }
-        }
-    }
-
-    free(reference);
-}
-
-/**
- * Frames are drawn at an interval only while the reveal reports itself
- * animating, and the last one drawn is what stays on the panel, so it must be
- * the rest. At the device's own interval, at least one earlier frame must
- * differ from the rest, or the effect does nothing. Every interval up to the
- * device's is swept when every_interval is set; otherwise only the device's.
- */
-static void check_effect_settles_before_frames_stop(const theme_t *theme, uint8_t effect,
-                                                    const roll_t *roll, uint32_t start,
-                                                    bool every_interval) {
-    const size_t frame_bytes = (size_t)CANVAS_WIDTH * CANVAS_HEIGHT * sizeof(uint16_t);
-    uint16_t *rest = malloc(frame_bytes);
-
-    reveal_select_effect(effect);
-    render_rest(theme, roll, start);
-    memcpy(rest, canvas_pixels(), frame_bytes);
-
-    for (uint32_t interval = every_interval ? 1 : DEVICE_FRAME_MS; interval <= DEVICE_FRAME_MS;
-         interval++) {
-        reveal_begin(roll, start);
-        int moving_frames = 0;
-        for (uint32_t now = start; reveal_is_animating(now); now += interval) {
-            canvas_fill(theme->colors.background);
-            reveal_draw(now, FRAME_ALPHA);
-            moving_frames += memcmp(rest, canvas_pixels(), frame_bytes) != 0;
-        }
-
-        if (memcmp(rest, canvas_pixels(), frame_bytes) != 0) {
-            fail("%s: %s under %s stops on a moving frame at a %u ms interval", theme->name,
-                 describe(roll), EFFECTS[effect]->name, (unsigned)interval);
-            break;
-        }
-
-        if (interval == DEVICE_FRAME_MS && moving_frames == 0) {
-            fail("%s: %s under %s draws no frame that differs from its rest", theme->name,
-                 describe(roll), EFFECTS[effect]->name);
-        }
-    }
-
-    free(rest);
-}
-
-// A numeric roll is felt exactly once, while the effect is still running.
-static void check_effect_plays_one_cue(const theme_t *theme, uint8_t effect, const roll_t *roll,
-                                       uint32_t start) {
-    cue_log_t log;
-    memset(&log, 0, sizeof(log));
-
-    reveal_select_effect(effect);
-    recording = &log;
-    reveal_begin(roll, start);
-    for (uint32_t now = start; reveal_is_animating(now); now += STEP_MS) {
-        recording_now = now - start;
-        reveal_tick(now);
-    }
-    recording = NULL;
-
-    if (log.count != 1) {
-        fail("%s: %s under %s plays %d cues", theme->name, describe(roll), EFFECTS[effect]->name,
-             log.count);
-        return;
-    }
-
-    if (log.cues[0].at_ms > EFFECTS[effect]->duration_ms) {
-        fail("%s: %s under %s plays its cue at %u ms, after the effect rests", theme->name,
-             describe(roll), EFFECTS[effect]->name, (unsigned)log.cues[0].at_ms);
-    }
-
-    if (effect == effect_index_of("tear") &&
-        (log.cues[0].effect != HAPTIC_MODIFIER || log.cues[0].at_ms != 0)) {
-        fail("%s: the tear plays haptic %d at %u ms; the strike is %d at 0 ms", theme->name,
-             log.cues[0].effect, (unsigned)log.cues[0].at_ms, HAPTIC_MODIFIER);
-    }
-
-    if (effect == effect_index_of("slide") && log.cues[0].effect != HAPTIC_ANSWER) {
-        fail("%s: the slide plays haptic %d; landing is %d", theme->name, log.cues[0].effect,
-             HAPTIC_ANSWER);
-    }
-}
-
-/**
- * The tear is on screen in full from its first frame; the slide is still off
- * screen. Both are what their names promise.
- */
-static void check_effect_opens_as_named(const theme_t *theme) {
-    const roll_t *roll = &NUMERIC_ROLLS[1];
-
-    reveal_select_effect(effect_index_of("tear"));
-    reveal_begin(roll, 0);
-    canvas_fill(theme->colors.background);
-    reveal_draw(0, FRAME_ALPHA);
-    if (is_background_only(theme)) {
-        fail("%s: the tear's first frame is empty", theme->name);
-    }
-
-    reveal_select_effect(effect_index_of("slide"));
-    reveal_begin(roll, 0);
-    canvas_fill(theme->colors.background);
-    reveal_draw(0, FRAME_ALPHA);
-    if (!is_background_only(theme)) {
-        fail("%s: the slide's first frame already shows the number", theme->name);
-    }
-}
-
-/**
- * The setting must have no reach into the oracle: its frames and its cues are
- * the same under every effect.
- */
-static void check_oracle_ignores_the_effect(const theme_t *theme) {
-    const size_t frame_bytes = (size_t)CANVAS_WIDTH * CANVAS_HEIGHT * sizeof(uint16_t);
-    uint16_t *reference = malloc(frame_bytes);
-    cue_log_t reference_log;
-
-    for (uint8_t outcome = 0; outcome < ORACLE_OUTCOME_COUNT; outcome++) {
-        const roll_t roll = oracle_outcome(outcome);
-
-        reveal_select_effect(0);
-        memset(&reference_log, 0, sizeof(reference_log));
-        recording = &reference_log;
-        reveal_begin(&roll, 0);
-        for (uint32_t now = 0; reveal_is_animating(now); now += STEP_MS) {
-            recording_now = now;
-            reveal_tick(now);
-        }
-        recording = NULL;
-
-        for (uint8_t effect = 1; effect < EFFECT_COUNT; effect++) {
-            for (uint32_t now = 0; now < 2000; now += 37) {
-                reveal_select_effect(0);
-                reveal_begin(&roll, 0);
-                canvas_fill(theme->colors.background);
-                reveal_draw(now, FRAME_ALPHA);
-                memcpy(reference, canvas_pixels(), frame_bytes);
-
-                reveal_select_effect(effect);
-                reveal_begin(&roll, 0);
-                canvas_fill(theme->colors.background);
-                reveal_draw(now, FRAME_ALPHA);
-                if (memcmp(reference, canvas_pixels(), frame_bytes) != 0) {
-                    fail("%s: %s draws differently at %u ms under %s", theme->name,
-                         describe(&roll), (unsigned)now, EFFECTS[effect]->name);
-                    break;
-                }
-            }
-
-            cue_log_t log;
-            memset(&log, 0, sizeof(log));
-            reveal_select_effect(effect);
-            recording = &log;
-            reveal_begin(&roll, 0);
-            for (uint32_t now = 0; reveal_is_animating(now); now += STEP_MS) {
-                recording_now = now;
-                reveal_tick(now);
-            }
-            recording = NULL;
-
-            if (log.count != reference_log.count ||
-                memcmp(log.cues, reference_log.cues, sizeof(cue_t) * (size_t)log.count) != 0) {
-                fail("%s: %s plays different cues under %s", theme->name, describe(&roll),
-                     EFFECTS[effect]->name);
-            }
-        }
-    }
-
-    free(reference);
-}
-
 int main(void) {
     if (!canvas_begin()) {
         fputs("check: no framebuffer\n", stderr);
@@ -521,7 +279,6 @@ int main(void) {
     }
 
     const theme_t *theme = theme_active();
-    reveal_select_effect(0);
     const uint32_t until = concealed_until();
 
     check_concealed_frames(theme, until);
@@ -532,24 +289,8 @@ int main(void) {
         check_stage_band(theme, &roll, 0);
     }
 
-    check_oracle_ignores_the_effect(theme);
-    check_effects_share_a_rest(theme);
-    check_effect_opens_as_named(theme);
-
-    for (uint8_t effect = 0; effect < EFFECT_COUNT; effect++) {
-        for (size_t index = 0; index < NUMERIC_ROLL_COUNT; index++) {
-            for (size_t start = 0; start < START_TIME_COUNT; start++) {
-                check_stage_band(theme, &NUMERIC_ROLLS[index], START_TIMES[start]);
-                check_effect_settles_before_frames_stop(theme, effect, &NUMERIC_ROLLS[index],
-                                                        START_TIMES[start], start == 0);
-                check_effect_plays_one_cue(theme, effect, &NUMERIC_ROLLS[index],
-                                           START_TIMES[start]);
-            }
-        }
-    }
-
-    printf("%s: concealed for %u ms, %u outcomes, %u effects\n", theme->name,
-           (unsigned)until, (unsigned)ORACLE_OUTCOME_COUNT, (unsigned)EFFECT_COUNT);
+    printf("%s: concealed for %u ms, %u outcomes\n", theme->name, (unsigned)until,
+           (unsigned)ORACLE_OUTCOME_COUNT);
 
     if (failures > 0) {
         fprintf(stderr, "check: %d failure%s\n", failures, failures == 1 ? "" : "s");
