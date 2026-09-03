@@ -127,6 +127,22 @@ static void check_rows_are_clamped(void) {
     EXPECT(rows.height == 0, "empty and off-canvas marks presented %d+%d", rows.top, rows.height);
 }
 
+// Two rects overlap when they share at least one pixel; touching edges do not.
+static void check_overlap_is_by_pixel(void) {
+    const frame_rect_t stage = {124, 110, 0, CANVAS_WIDTH};
+    const frame_rect_t below = {234, 20, 0, CANVAS_WIDTH};
+    const frame_rect_t straddling = {200, 60, 0, CANVAS_WIDTH};
+    const frame_rect_t beside = {124, 110, 0, 0};
+    const frame_rect_t corner = {233, 5, CANVAS_WIDTH - 1, 1};
+
+    EXPECT(!frame_rect_is_overlapping(stage, below), "rects that touch at an edge overlap");
+    EXPECT(frame_rect_is_overlapping(stage, straddling), "rects sharing rows do not overlap");
+    EXPECT(frame_rect_is_overlapping(straddling, stage), "overlap is not symmetric");
+    EXPECT(!frame_rect_is_overlapping(stage, beside), "a rect of zero width overlaps");
+    EXPECT(frame_rect_is_overlapping(stage, corner), "a single shared pixel does not overlap");
+    EXPECT(frame_rect_is_overlapping(stage, stage), "a rect does not overlap itself");
+}
+
 static void check_frames_are_paced(void) {
     reset(1000);
     frame_mark((frame_rect_t){0, 10, 0, CANVAS_WIDTH});
@@ -158,6 +174,7 @@ int main(void) {
     check_marks_union();
     check_rows_are_clamped();
     check_frames_are_paced();
+    check_overlap_is_by_pixel();
 
     if (failures > 0) {
         fprintf(stderr, "frame: %d failure%s\n", failures, failures == 1 ? "" : "s");

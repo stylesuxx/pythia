@@ -98,3 +98,9 @@ frame_rect_t frame_render(uint32_t now, uint16_t background,
 
     return rows;
 }
+
+bool frame_rect_is_overlapping(frame_rect_t a, frame_rect_t b) {
+    const bool rows_apart = a.top + a.height <= b.top || b.top + b.height <= a.top;
+    const bool columns_apart = a.left + a.width <= b.left || b.left + b.width <= a.left;
+    return !(rows_apart || columns_apart);
+}

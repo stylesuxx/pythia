@@ -23,13 +23,6 @@ bool reveal_is_animating(uint32_t now);
 frame_rect_t reveal_stage(void);
 
 /**
- * Die name curved along the bottom rim. This is persistent chrome: it is drawn
- * only on whole-screen frames and a roll's band never reaches it, so it holds
- * steady while results come and go.
- */
-void reveal_draw_caption(const char *text, uint8_t alpha);
-
-/**
  * Drives the haptic beats. Call every loop, not once per rendered frame, so the
  * thumps stay on time even when a frame is skipped.
  */

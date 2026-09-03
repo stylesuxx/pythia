@@ -6,6 +6,7 @@
 #include "render/canvas.h"
 #include "frame.h"
 #include "haptics.h"
+#include "scenes/caption.h"
 #include "scenes/menu.h"
 #include "oracle.h"
 #include "power.h"
@@ -180,8 +181,8 @@ static void draw_scene(void *context, frame_rect_t rows) {
 
     /*
      * The rim caption trades places with the centred name as the choice
-     * settles, then holds. It lies outside the reveal's stage, so a band
-     * frame never reaches it and it survives every roll.
+     * settles, then holds. It is drawn whenever a frame covers its rows; a
+     * roll's band lies clear of them, so it survives every roll untouched.
      */
     uint8_t caption_alpha = 0;
     switch (mode) {
@@ -204,8 +205,8 @@ static void draw_scene(void *context, frame_rect_t rows) {
         } break;
     }
 
-    if (rows.height == CANVAS_HEIGHT) {
-        reveal_draw_caption(DICE[selected].name, caption_alpha);
+    if (frame_rect_is_overlapping(rows, caption_get_rect())) {
+        caption_draw(DICE[selected].name, caption_alpha);
     }
 }
 

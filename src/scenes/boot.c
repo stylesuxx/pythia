@@ -6,6 +6,7 @@
 
 #include "render/canvas.h"
 #include "render/generated/fonts.h"
+#include "scenes/caption.h"
 #include "scenes/glitch.h"
 #include "haptics.h"
 #include "render/theme.h"
@@ -31,8 +32,6 @@ const char BOOT_SCRAMBLE_CHARACTERS[] = "0123456789ABCDEFXZ#%&/";
 #define SPIN_START_ANGLE (-(float)M_PI / 2.0f)
 #define SPIN_TAIL_RADIANS 2.2f
 
-#define CAPTION_RADIUS 166.0f
-#define CAPTION_ANGLE 1.5707963f // bottom of the panel
 #define CAPTION_TRACKING 4.0f
 
 #define SCAN_BAND_ROWS 3

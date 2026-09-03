@@ -20,11 +20,6 @@
 #define STAGE_TOP 124
 #define STAGE_HEIGHT 110
 
-// Baseline circle for the rim caption, measured from the panel centre.
-#define CAPTION_RADIUS 166.0f
-#define CAPTION_ANGLE 1.5707963f // bottom of the panel
-#define CAPTION_TRACKING 5.0f
-
 #define ANSWER_SLIDE_MS 380
 #define BEAT_HOLD_MS 620
 #define MODIFIER_SLIDE_MS 260
@@ -212,12 +207,6 @@ void reveal_draw(uint32_t now, uint8_t alpha) {
         canvas_text(theme->label_font, current_roll.modifier, (int)lroundf(modifier_x),
                     ANSWER_BASELINE, theme->modifier, alpha);
     }
-}
-
-void reveal_draw_caption(const char *text, uint8_t alpha) {
-    const theme_t *theme = theme_active();
-    canvas_text_arc(theme->caption_font, text, CANVAS_WIDTH / 2.0f, CANVAS_HEIGHT / 2.0f,
-                    CAPTION_RADIUS, CAPTION_ANGLE, CAPTION_TRACKING, theme->label, alpha);
 }
 
 frame_rect_t reveal_stage(void) {

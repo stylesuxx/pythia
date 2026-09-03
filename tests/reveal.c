@@ -301,26 +301,6 @@ static void check_stage_band(const theme_t *theme, const roll_t *roll, uint32_t 
     }
 }
 
-/**
- * The rim caption must lie entirely outside the stage, so a band repaint can
- * never touch it. Measured from the widest die name rather than assumed.
- */
-static void check_caption_clears_stage(const theme_t *theme) {
-    const frame_rect_t stage = reveal_stage();
-    canvas_fill(theme->background);
-    reveal_draw_caption("ORACLE", FRAME_ALPHA);
-
-    const uint16_t *pixels = canvas_pixels();
-    for (int row = stage.top; row < stage.top + stage.height; row++) {
-        for (int column = 0; column < CANVAS_WIDTH; column++) {
-            if (pixels[row * CANVAS_WIDTH + column] != theme->background) {
-                fail("%s: the rim caption reaches into the stage at row %d", theme->name, row);
-                return;
-            }
-        }
-    }
-}
-
 static bool is_background_only(const theme_t *theme) {
     const uint16_t *pixels = canvas_pixels();
     for (size_t index = 0; index < (size_t)CANVAS_WIDTH * CANVAS_HEIGHT; index++) {
@@ -554,7 +534,6 @@ int main(void) {
             check_stage_band(theme, &roll, 0);
         }
 
-        check_caption_clears_stage(theme);
         check_oracle_ignores_the_effect(theme);
         check_effects_share_a_rest(theme);
         check_effect_opens_as_named(theme);

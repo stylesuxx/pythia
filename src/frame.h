@@ -39,6 +39,9 @@ void frame_begin(uint32_t now);
  * the canvas is clipped away.
  */
 void frame_mark(frame_rect_t rows);
+
+// True when the two rects share at least one pixel; touching edges do not.
+bool frame_rect_is_overlapping(frame_rect_t a, frame_rect_t b);
 void frame_mark_whole(void);
 
 /**

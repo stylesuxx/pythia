@@ -11,6 +11,7 @@
 
 #include "scenes/boot.h"
 #include "render/canvas.h"
+#include "scenes/caption.h"
 #include "scenes/coin.h"
 #include "scenes/effects/effect.h"
 #include "esp_random.h"
@@ -172,7 +173,7 @@ static int render_reveal(const char *answer, const char *modifier, const char *c
     for (uint32_t now = 0; now <= 1600; now += FRAME_INTERVAL_MS) {
         canvas_fill(theme_active()->background);
         reveal_draw(now, 255);
-        reveal_draw_caption(caption, 255);
+        caption_draw(caption, 255);
         if (!encode_frame(gif)) {
             return -1;
         }
@@ -318,7 +319,7 @@ static int render_coin(gif_writer_t *gif) {
     for (uint32_t now = 900; now < 900 + rest_ms; now += FRAME_INTERVAL_MS) {
         canvas_fill(theme_active()->background);
         coin_draw(now, 255);
-        reveal_draw_caption("D2", 255);
+        caption_draw("D2", 255);
         if (!encode_frame(gif)) {
             return -1;
         }
@@ -330,7 +331,7 @@ static int render_coin(gif_writer_t *gif) {
     for (uint32_t now = 900 + rest_ms; now < 900 + rest_ms + throw_ms; now += FRAME_INTERVAL_MS) {
         canvas_fill(theme_active()->background);
         coin_draw(now, 255);
-        reveal_draw_caption("D2", 255);
+        caption_draw("D2", 255);
 
         if (!encode_frame(gif)) {
             return -1;
