@@ -323,7 +323,9 @@ frame_rect_t mode_step(uint32_t now, mode_input_t input) {
     handle_stillness(now);
     handle_pending(now);
 
-    if (mode == MODE_RESULT) {
+    // The cues belong to whatever is on stage: the coin has none, and the
+    // reveal's must not fire under a coin.
+    if (mode == MODE_RESULT && !die_is_coin()) {
         reveal_tick(now);
     }
 

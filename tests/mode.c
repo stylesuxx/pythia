@@ -292,6 +292,32 @@ static void check_the_coin_can_be_switched_off(void) {
     coin_setting = true;
 }
 
+// The coin fires no cue of its own, and the reveal's cues belong to the
+// reveal: a coin flip must not borrow one from a reveal that is not on stage.
+static void check_a_coin_flip_fires_no_cue(void) {
+    uint8_t coin_die = 0;
+    for (uint8_t index = 0; index < DIE_COUNT; index++) {
+        if (DICE[index].kind == DIE_COIN) {
+            coin_die = index;
+        }
+    }
+
+    coin_setting = true;
+    const uint32_t now = boot_on(coin_die) + 500;
+    reset_recording();
+    step(now, 0, true);
+    EXPECT(mode_current() == MODE_RESULT, "a tap on the coin die did not roll");
+
+    for (uint32_t later = now + STEP_MS; later <= now + 2000; later += STEP_MS) {
+        mode_step(later, NOTHING);
+    }
+
+    EXPECT(haptic_counts[HAPTIC_ANSWER] == 0, "a coin flip played %d answer cues",
+           haptic_counts[HAPTIC_ANSWER]);
+    EXPECT(haptic_counts[HAPTIC_MODIFIER] == 0, "a coin flip played %d modifier cues",
+           haptic_counts[HAPTIC_MODIFIER]);
+}
+
 static void check_turning_leaves_a_result(void) {
     const uint32_t now = boot_on(5) + 500;
     step(now, 0, true);
@@ -409,6 +435,7 @@ int main(void) {
     check_tap_when_armed_rolls();
     check_tap_on_a_result_rolls_again();
     check_the_coin_can_be_switched_off();
+    check_a_coin_flip_fires_no_cue();
     check_turning_leaves_a_result();
     check_frames_are_paced();
     check_idle_dims_then_sleeps();
