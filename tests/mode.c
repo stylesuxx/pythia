@@ -486,6 +486,20 @@ static void check_a_touch_held_through_the_wake_rolls_nothing(void) {
     EXPECT(haptic_counts[HAPTIC_ANSWER] == 0, "a touch held through the wake rolled");
 }
 
+// A stored die the table no longer has arms the oracle, the die of last resort.
+static void check_a_die_past_the_table_arms_the_oracle(void) {
+    const mode_config_t config = {
+        .die = (uint8_t)(DIE_COUNT + 3),
+        .idle_ms = IDLE_SLEEP_MS,
+        .coin_enabled = coin_setting,
+        .effect_index = 0
+    };
+    mode_begin(0, &config);
+    EXPECT(step_until(0, BOOT_LIMIT_MS, MODE_ARMED) != 0, "boot did not hand over to armed");
+    EXPECT(mode_get_selected_die() == die_index_of("ORACLE"), "a die past the table armed %u",
+           (unsigned)mode_get_selected_die());
+}
+
 static void check_a_turn_wakes_and_is_acted_on(void) {
     const uint32_t armed = boot_on(3);
     const uint32_t dark = sleep_from(armed);
@@ -521,6 +535,7 @@ int main(void) {
     check_touches_inside_the_debounce_are_one();
     check_a_touch_held_through_the_wake_rolls_nothing();
     check_a_turn_wakes_and_is_acted_on();
+    check_a_die_past_the_table_arms_the_oracle();
 
     if (failures > 0) {
         fprintf(stderr, "mode: %d failure%s\n", failures, failures == 1 ? "" : "s");

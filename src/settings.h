@@ -8,26 +8,29 @@ extern "C" {
 #endif
 
 /*
- * The stored settings and nothing else: read at boot, written through on every
- * change, clamped to the tables they index. The shell hands each one to the
- * module that acts on it, so those modules never consult the store.
+ * Port: what the device remembers across power cycles. hardware/settings.cpp
+ * keeps it in NVS; the host adapters have no store. The shell reads the
+ * settings once at boot and hands each to the module that acts on it, so no
+ * module consults the store, and the die is the one thing written at runtime.
  */
 
-void settings_begin(void);
+typedef struct {
+    bool display_rotated;
+    bool haptics_enabled;
+    bool coin_enabled;
+    uint8_t effect_index; // an index into EFFECTS
+    uint8_t die_index;    // an index into DICE
+} settings_t;
 
-bool settings_is_display_rotated(void);
-void settings_set_display_rotated(bool rotated);
+/**
+ * Opens the store and lays every value it holds over settings, so the caller
+ * fills in the defaults first and a value the store lacks keeps them. Stored
+ * indexes are handed over as they are; the module that indexes a table with
+ * one decides what a value past the table means.
+ */
+void settings_begin(settings_t *settings);
 
-bool settings_is_haptics_enabled(void);
-void settings_set_haptics_enabled(bool enabled);
-
-bool settings_is_coin_enabled(void);
-void settings_set_coin_enabled(bool enabled);
-
-uint8_t settings_effect_index(void);
-void settings_set_effect_index(uint8_t index);
-
-uint8_t settings_die_index(void);
+// Written when a choice settles; a write of the value already stored is skipped.
 void settings_set_die_index(uint8_t index);
 
 /**

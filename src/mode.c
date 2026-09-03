@@ -243,7 +243,7 @@ static frame_rect_t render(uint32_t now) {
 }
 
 void mode_begin(uint32_t now, const mode_config_t *config) {
-    selected = config->die < DIE_COUNT ? config->die : 0;
+    selected = config->die < DIE_COUNT ? config->die : die_index_of("ORACLE");
     stage_configure(config->coin_enabled, config->effect_index);
     mode = MODE_BOOT;
     pending = PENDING_NONE;

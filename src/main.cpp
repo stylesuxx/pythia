@@ -19,6 +19,7 @@
 #include "mode.h"
 #include "oracle.h"
 #include "hardware/panel.h"
+#include "scenes/effects/effect.h"
 #include "settings.h"
 #include "render/theme.h"
 #include "hardware/touch_cst816.h"
@@ -46,6 +47,7 @@ static bool ready = false;
 static bool safe_mode = false;
 static bool boot_settled = false;
 static bool safe_mode_announced = false;
+static settings_t settings;
 static mode_config_t config;
 
 /*
@@ -69,7 +71,14 @@ static void apply_user_files(void) {
 
 void setup() {
     Serial.begin(115200);
-    settings_begin();
+
+    // The defaults, for a store that has never been written.
+    settings.display_rotated = true;
+    settings.haptics_enabled = true;
+    settings.coin_enabled = true;
+    settings.effect_index = effect_index_of("tear");
+    settings.die_index = die_index_of("ORACLE");
+    settings_begin(&settings);
 
     if (settings_note_boot_attempt() >= SAFE_MODE_AFTER_ATTEMPTS) {
         settings_clear_boot_attempts();
@@ -94,7 +103,7 @@ void setup() {
     }
 
     apply_user_files();
-    panel_set_rotated(settings_is_display_rotated());
+    panel_set_rotated(settings.display_rotated);
 
     /*
      * The panel keeps its RAM through a reset, so the first frame goes up
@@ -107,14 +116,16 @@ void setup() {
     Wire.begin(PIN_I2C_SDA, PIN_I2C_SCL, 400000);
 
     haptics_begin();
-    haptics_set_enabled(settings_is_haptics_enabled());
+    haptics_set_enabled(settings.haptics_enabled);
 
     touch_begin();
     encoder_begin();
     oracle_begin();
 
-    config = {settings_die_index(), IDLE_SLEEP_MS, settings_is_coin_enabled(),
-              settings_effect_index()};
+    config.die = settings.die_index;
+    config.idle_ms = IDLE_SLEEP_MS;
+    config.coin_enabled = settings.coin_enabled;
+    config.effect_index = settings.effect_index;
     mode_begin(millis(), &config);
     ready = true;
 }
