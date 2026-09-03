@@ -61,20 +61,7 @@ void haptics_play(uint8_t effect) {
     recording->count++;
 }
 
-bool settings_is_display_rotated(void) {
-    return true;
-}
-
-bool settings_is_haptics_enabled(void) {
-    return true;
-}
-
 // The effect setting, scripted so every effect in the table gets its turn.
-static uint8_t effect_setting = 0;
-
-uint8_t settings_effect_index(void) {
-    return effect_setting;
-}
 
 // Numeric results at each digit count, and the D66 that shares the face.
 static const roll_t NUMERIC_ROLLS[] = {
@@ -359,7 +346,7 @@ static void check_effects_share_a_rest(const theme_t *theme) {
     for (size_t index = 0; index < NUMERIC_ROLL_COUNT; index++) {
         const roll_t *roll = &NUMERIC_ROLLS[index];
 
-        effect_setting = 0;
+        reveal_select_effect(0);
         render_rest(theme, roll, 0);
         if (is_background_only(theme)) {
             fail("%s: %s rests on an empty frame under %s", theme->name, describe(roll),
@@ -368,7 +355,7 @@ static void check_effects_share_a_rest(const theme_t *theme) {
         memcpy(reference, canvas_pixels(), frame_bytes);
 
         for (uint8_t effect = 1; effect < EFFECT_COUNT; effect++) {
-            effect_setting = effect;
+            reveal_select_effect(effect);
             render_rest(theme, roll, 0);
             if (memcmp(reference, canvas_pixels(), frame_bytes) != 0) {
                 fail("%s: %s rests differently under %s than under %s", theme->name,
@@ -393,7 +380,7 @@ static void check_effect_settles_before_frames_stop(const theme_t *theme, uint8_
     const size_t frame_bytes = (size_t)CANVAS_WIDTH * CANVAS_HEIGHT * sizeof(uint16_t);
     uint16_t *rest = malloc(frame_bytes);
 
-    effect_setting = effect;
+    reveal_select_effect(effect);
     render_rest(theme, roll, start);
     memcpy(rest, canvas_pixels(), frame_bytes);
 
@@ -428,7 +415,7 @@ static void check_effect_plays_one_cue(const theme_t *theme, uint8_t effect, con
     cue_log_t log;
     memset(&log, 0, sizeof(log));
 
-    effect_setting = effect;
+    reveal_select_effect(effect);
     recording = &log;
     reveal_begin(roll, start);
     for (uint32_t now = start; reveal_is_animating(now); now += STEP_MS) {
@@ -467,7 +454,7 @@ static void check_effect_plays_one_cue(const theme_t *theme, uint8_t effect, con
 static void check_effect_opens_as_named(const theme_t *theme) {
     const roll_t *roll = &NUMERIC_ROLLS[1];
 
-    effect_setting = effect_index_of("tear");
+    reveal_select_effect(effect_index_of("tear"));
     reveal_begin(roll, 0);
     canvas_fill(theme->background);
     reveal_draw(0, FRAME_ALPHA);
@@ -475,7 +462,7 @@ static void check_effect_opens_as_named(const theme_t *theme) {
         fail("%s: the tear's first frame is empty", theme->name);
     }
 
-    effect_setting = effect_index_of("slide");
+    reveal_select_effect(effect_index_of("slide"));
     reveal_begin(roll, 0);
     canvas_fill(theme->background);
     reveal_draw(0, FRAME_ALPHA);
@@ -496,7 +483,7 @@ static void check_oracle_ignores_the_effect(const theme_t *theme) {
     for (uint8_t outcome = 0; outcome < ORACLE_OUTCOME_COUNT; outcome++) {
         const roll_t roll = oracle_outcome(outcome);
 
-        effect_setting = 0;
+        reveal_select_effect(0);
         memset(&reference_log, 0, sizeof(reference_log));
         recording = &reference_log;
         reveal_begin(&roll, 0);
@@ -508,13 +495,13 @@ static void check_oracle_ignores_the_effect(const theme_t *theme) {
 
         for (uint8_t effect = 1; effect < EFFECT_COUNT; effect++) {
             for (uint32_t now = 0; now < 2000; now += 37) {
-                effect_setting = 0;
+                reveal_select_effect(0);
                 reveal_begin(&roll, 0);
                 canvas_fill(theme->background);
                 reveal_draw(now, FRAME_ALPHA);
                 memcpy(reference, canvas_pixels(), frame_bytes);
 
-                effect_setting = effect;
+                reveal_select_effect(effect);
                 reveal_begin(&roll, 0);
                 canvas_fill(theme->background);
                 reveal_draw(now, FRAME_ALPHA);
@@ -527,7 +514,7 @@ static void check_oracle_ignores_the_effect(const theme_t *theme) {
 
             cue_log_t log;
             memset(&log, 0, sizeof(log));
-            effect_setting = effect;
+            reveal_select_effect(effect);
             recording = &log;
             reveal_begin(&roll, 0);
             for (uint32_t now = 0; reveal_is_animating(now); now += STEP_MS) {
@@ -556,7 +543,7 @@ int main(void) {
     for (uint8_t index = 0; index < THEME_COUNT; index++) {
         theme_select(index);
         const theme_t *theme = theme_active();
-        effect_setting = 0;
+        reveal_select_effect(0);
         const uint32_t until = concealed_until();
 
         check_concealed_frames(theme, until);

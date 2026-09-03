@@ -28,16 +28,6 @@ static uint8_t theme_index = DEFAULT_THEME;
 static uint8_t effect_index = 0;
 static uint8_t die_index = 0;
 
-static uint8_t oracle_index(void) {
-    for (uint8_t index = 0; index < DIE_COUNT; index++) {
-        if (DICE[index].kind == DIE_ORACLE) {
-            return index;
-        }
-    }
-
-    return 0;
-}
-
 void settings_begin(void) {
     storage.begin(SETTINGS_NAMESPACE, false);
     display_rotated = storage.getBool(KEY_ROTATED, DEFAULT_ROTATED);
@@ -45,7 +35,7 @@ void settings_begin(void) {
     coin_enabled = storage.getBool(KEY_COIN, DEFAULT_COIN);
     theme_index = storage.getUChar(KEY_THEME, DEFAULT_THEME);
     effect_index = storage.getUChar(KEY_EFFECT, effect_index_of(DEFAULT_EFFECT));
-    die_index = storage.getUChar(KEY_DIE, oracle_index());
+    die_index = storage.getUChar(KEY_DIE, die_index_of("ORACLE"));
 
     if (theme_index >= THEME_COUNT) {
         theme_index = DEFAULT_THEME;
@@ -56,10 +46,8 @@ void settings_begin(void) {
     }
 
     if (die_index >= DIE_COUNT) {
-        die_index = oracle_index();
+        die_index = die_index_of("ORACLE");
     }
-
-    theme_select(theme_index);
 }
 
 bool settings_is_display_rotated(void) {
@@ -100,7 +88,6 @@ void settings_set_theme_index(uint8_t index) {
 
     theme_index = index;
     storage.putUChar(KEY_THEME, index);
-    theme_select(index);
 }
 
 uint8_t settings_effect_index(void) {

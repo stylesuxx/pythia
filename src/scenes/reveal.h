@@ -10,6 +10,7 @@
 extern "C" {
 #endif
 
+void reveal_select_effect(uint8_t index);
 void reveal_begin(const roll_t *roll, uint32_t now);
 void reveal_draw(uint32_t now, uint8_t alpha);
 bool reveal_is_animating(uint32_t now);

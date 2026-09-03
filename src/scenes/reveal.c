@@ -6,7 +6,6 @@
 #include "render/canvas.h"
 #include "scenes/effects/effect.h"
 #include "haptics.h"
-#include "settings.h"
 #include "render/theme.h"
 
 /**
@@ -58,6 +57,7 @@ static uint32_t started_ms = 0;
  */
 extern const effect_t EFFECT_SLIDE;
 static const effect_t *effect = &EFFECT_SLIDE;
+static uint8_t effect_index = 0;
 static effect_subject_t subject;
 
 static const font_t *answer_font = NULL;
@@ -120,13 +120,12 @@ static void begin_effect(const theme_t *theme, uint32_t seed) {
     subject.baseline = NUMBER_BASELINE;
     subject.stage = reveal_stage();
 
-    uint8_t index = settings_effect_index();
-    if (index >= EFFECT_COUNT) {
-        index = 0;
-    }
-
-    effect = EFFECTS[index];
+    effect = EFFECTS[effect_index];
     effect->begin(&subject, seed);
+}
+
+void reveal_select_effect(uint8_t index) {
+    effect_index = index < EFFECT_COUNT ? index : 0;
 }
 
 void reveal_begin(const roll_t *roll, uint32_t now) {

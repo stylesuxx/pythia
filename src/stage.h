@@ -19,7 +19,7 @@ extern "C" {
  * its rows.
  */
 
-void stage_configure(bool coin_enabled);
+void stage_configure(bool coin_enabled, uint8_t effect_index);
 void stage_begin(const roll_t *roll, uint32_t now);
 void stage_draw(uint32_t now, uint8_t alpha);
 frame_rect_t stage_get_rect(void);

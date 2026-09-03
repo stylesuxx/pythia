@@ -60,6 +60,8 @@ void setup() {
     }
 
     settings_begin();
+    theme_select(settings_theme_index());
+    panel_set_rotated(settings_is_display_rotated());
 
     /*
      * The panel keeps its RAM through a reset, so the first frame goes up
@@ -70,12 +72,16 @@ void setup() {
     panel_set_backlight(255);
 
     Wire.begin(PIN_I2C_SDA, PIN_I2C_SCL, 400000);
-    touch_begin();
+
     haptics_begin();
+    haptics_set_enabled(settings_is_haptics_enabled());
+
+    touch_begin();
     encoder_begin();
     oracle_begin();
 
-    const mode_config_t config = {settings_die_index(), IDLE_SLEEP_MS, settings_is_coin_enabled()};
+    const mode_config_t config = {settings_die_index(), IDLE_SLEEP_MS, settings_is_coin_enabled(),
+                                  settings_effect_index()};
     mode_begin(millis(), &config);
     ready = true;
 }

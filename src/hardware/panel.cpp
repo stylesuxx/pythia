@@ -12,7 +12,6 @@
 #include "freertos/semphr.h"
 #include "knob_lcd_init.h"
 #include "knob_pins.h"
-#include "settings.h"
 
 /**
  * One band per DMA transfer. 360x40 keeps each staging buffer under 29 KB of
@@ -30,6 +29,7 @@
 #define PANEL_QSPI_HZ (40 * 1000 * 1000)
 
 static esp_lcd_panel_handle_t panel = NULL;
+static bool display_rotated = false;
 static uint16_t *bands[PANEL_BAND_COUNT] = {NULL, NULL};
 static SemaphoreHandle_t band_sent = NULL;
 
@@ -153,7 +153,7 @@ void panel_present_rect(const uint16_t *pixels, int top, int height, int left, i
     }
 
     const int span = to - from;
-    const bool rotated = settings_is_display_rotated();
+    const bool rotated = display_rotated;
     /*
      * Bands are sized in whole rows of the full canvas, so a narrower rectangle
      * simply fits more of its rows into one.
@@ -190,6 +190,10 @@ void panel_present_rect(const uint16_t *pixels, int top, int height, int left, i
  */
 static uint8_t applied_level = 0;
 static bool output_enabled = true;
+
+void panel_set_rotated(bool rotated) {
+    display_rotated = rotated;
+}
 
 void panel_set_backlight(uint8_t level) {
     if (level == applied_level) {

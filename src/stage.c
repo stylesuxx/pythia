@@ -47,8 +47,9 @@ static const stage_adapter_t COIN_ADAPTER = {
 static const stage_adapter_t *current = &REVEAL_ADAPTER;
 static bool coin_enabled = true;
 
-void stage_configure(bool enabled) {
+void stage_configure(bool enabled, uint8_t effect_index) {
     coin_enabled = enabled;
+    reveal_select_effect(effect_index);
 }
 
 void stage_begin(const roll_t *roll, uint32_t now) {

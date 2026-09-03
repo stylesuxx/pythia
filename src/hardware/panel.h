@@ -26,6 +26,9 @@ void panel_present(const uint16_t *pixels);
  */
 void panel_present_rect(const uint16_t *pixels, int top, int height, int left, int width);
 
+// Rotate panel 180 degrees
+void panel_set_rotated(bool rotated);
+
 /**
  * Sets the light level, 0 to 255.
  *

@@ -1,6 +1,7 @@
 #include "oracle.h"
 
 #include <stdio.h>
+#include <string.h>
 
 #include "bootloader_random.h"
 #include "esp_cpu.h"
@@ -20,6 +21,21 @@ const die_t DICE[] = {
 };
 
 const uint8_t DIE_COUNT = (uint8_t)(sizeof(DICE) / sizeof(DICE[0]));
+
+uint8_t die_index_of(const char *name) {
+    uint8_t oracle = 0;
+    for (uint8_t index = 0; index < DIE_COUNT; index++) {
+        if (strcmp(DICE[index].name, name) == 0) {
+            return index;
+        }
+
+        if (DICE[index].kind == DIE_ORACLE) {
+            oracle = index;
+        }
+    }
+
+    return oracle;
+}
 
 /**
  * The six oracle outcomes, ordered as a d6 oracle table reads from worst to

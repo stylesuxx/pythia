@@ -1,5 +1,6 @@
 #pragma once
 
+#include <stdbool.h>
 #include <stdint.h>
 
 #ifdef __cplusplus
@@ -13,6 +14,9 @@ extern "C" {
 
 // Requires Wire.begin() to have run first; the DRV2605 shares the touch bus.
 void haptics_begin(void);
+
+// Off, haptics_play() does nothing. On until set.
+void haptics_set_enabled(bool enabled);
 
 void haptics_play(uint8_t effect);
 

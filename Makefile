@@ -1,14 +1,14 @@
 # Host tooling, plus the third-party fetch the firmware build needs.
 #
 #   make                     build the preview binary
-#   make reveal              render the oracle reveal to reveal.gif
+#   make reveal              render the oracle reveal to resources/reveal.gif
 #   make reveal ANSWER=NO MODIFIER=-
 #   make reveal ANSWER=17 MODIFIER=- CAPTION=D20 EFFECT=slide
-#   make roll                render two taps on a numeric die to roll.gif
+#   make roll                render two taps on a numeric die to resources/d100.gif
 #   make roll DIE=D66 FIRST=31 SECOND=66 EFFECT=slide
-#   make boot                render the power-on sequence to boot.gif
-#   make menu                render one full turn through the die list to menu.gif
-#   make coin                render the D2 coin turning and flipping to coin.gif
+#   make boot                render the power-on sequence to resources/boot.gif
+#   make menu                render one full turn through the die list to resources/menu.gif
+#   make coin                render the D2 coin turning and flipping to resources/coin.gif
 #   make check               build and run every test program under tests/
 #   make fonts               regenerate src/render/generated from the DejaVu faces
 #   make deps                fetch the third-party sources (none are committed)
@@ -83,19 +83,21 @@ ESPTOOL ?= $(HOME)/.platformio/penv/bin/python $(HOME)/.platformio/packages/tool
 PORT ?=
 UPLOAD_PORT_FLAG := $(if $(PORT),--upload-port $(PORT),)
 
+# The GIFs land in resources/, which is what the README shows, so the committed
+# animation is always the firmware's own rendering and git shows when it moved.
 THEME ?= midnight
 EFFECT ?= tear
 ANSWER ?= YES
 MODIFIER ?= and
 CAPTION ?= ORACLE
-REVEAL_GIF ?= reveal.gif
+REVEAL_GIF ?= resources/reveal.gif
 DIE ?= D100
 FIRST ?= 42
 SECOND ?= 87
-ROLL_GIF ?= roll.gif
-BOOT_GIF ?= boot.gif
-MENU_GIF ?= menu.gif
-COIN_GIF ?= coin.gif
+ROLL_GIF ?= resources/d100.gif
+BOOT_GIF ?= resources/boot.gif
+MENU_GIF ?= resources/menu.gif
+COIN_GIF ?= resources/coin.gif
 
 # The release image is the four parts `pio run -t upload` writes, laid out at
 # their flash offsets, so a web flasher writes the whole thing at address 0.

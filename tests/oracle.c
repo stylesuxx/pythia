@@ -133,7 +133,23 @@ static void check_outcome_table(void) {
     }
 }
 
+// A die is found by its name, and a name not in the table falls back to the oracle.
+static void check_die_index_of(void) {
+    const uint8_t d20 = die_index_of("D20");
+    if (d20 >= DIE_COUNT || strcmp(DICE[d20].name, "D20") != 0) {
+        fprintf(stderr, "FAIL: die_index_of(D20) gave %u\n", (unsigned)d20);
+        failures++;
+    }
+
+    const uint8_t unknown = die_index_of("D7");
+    if (unknown >= DIE_COUNT || DICE[unknown].kind != DIE_ORACLE) {
+        fprintf(stderr, "FAIL: an unknown die name gave %u rather than the oracle\n", (unsigned)unknown);
+        failures++;
+    }
+}
+
 int main(void) {
+    check_die_index_of();
     // 2^32 mod 6 is 4, so the window is the top four values.
     expect_roll("D6", (uint32_t[]){0}, 1, "1", NULL, 1);
     expect_roll("D6", (uint32_t[]){5}, 1, "6", NULL, 1);

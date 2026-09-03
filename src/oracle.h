@@ -30,9 +30,8 @@ typedef struct {
     const char *modifier; // NULL when the answer stands alone
 } roll_t;
 
-// Call once at startup, before the first roll.
 void oracle_begin(void);
-
+uint8_t die_index_of(const char *name);
 roll_t roll_die(const die_t *die);
 
 /**

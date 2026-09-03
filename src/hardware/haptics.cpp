@@ -3,10 +3,10 @@
 #include <Adafruit_DRV2605.h>
 #include <Arduino.h>
 
-#include "settings.h"
 
 static Adafruit_DRV2605 driver;
 static bool driver_ready = false;
+static bool enabled = true;
 
 void haptics_begin(void) {
     driver_ready = driver.begin();
@@ -20,8 +20,12 @@ void haptics_begin(void) {
     driver.setMode(DRV2605_MODE_INTTRIG);
 }
 
+void haptics_set_enabled(bool on) {
+    enabled = on;
+}
+
 void haptics_play(uint8_t effect) {
-    if (!driver_ready || !settings_is_haptics_enabled()) {
+    if (!driver_ready || !enabled) {
         return;
     }
 

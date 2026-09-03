@@ -15,8 +15,6 @@ __pycache__/
 
 # Host preview build output
 build/
-/reveal.gif
-/boot.gif
 
 # Merged flash image written by "make release"
 /pythia.bin
@@ -26,5 +24,3 @@ lib/esp_lcd_st77916/
 
 # Fetched by "make deps"; see the Makefile for the pins.
 tools/host/third_party/
-/menu.gif
-/coin.gif

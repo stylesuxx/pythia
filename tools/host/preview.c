@@ -126,18 +126,6 @@ void haptics_play(uint8_t effect) {
  */
 static uint8_t preview_effect = 0;
 
-bool settings_is_display_rotated(void) {
-    return true;
-}
-
-bool settings_is_haptics_enabled(void) {
-    return true;
-}
-
-uint8_t settings_effect_index(void) {
-    return preview_effect;
-}
-
 static bool select_effect(const char *name) {
     for (uint8_t index = 0; index < EFFECT_COUNT; index++) {
         if (strcmp(EFFECTS[index]->name, name) == 0) {
@@ -178,6 +166,7 @@ static int render_reveal(const char *answer, const char *modifier, const char *c
     roll.kind = (strcmp(answer, "YES") == 0 || strcmp(answer, "NO") == 0) ? DIE_ORACLE
                                                                            : DIE_NUMERIC;
 
+    reveal_select_effect(preview_effect);
     reveal_begin(&roll, 0);
     int frames = 0;
     for (uint32_t now = 0; now <= 1600; now += FRAME_INTERVAL_MS) {
@@ -224,14 +213,12 @@ static int render_boot(gif_writer_t *gif) {
  */
 static int render_menu(gif_writer_t *gif) {
     const mode_input_t nothing = {0, false};
-    uint8_t oracle = 0;
-    for (uint8_t index = 0; index < DIE_COUNT; index++) {
-        if (DICE[index].kind == DIE_ORACLE) {
-            oracle = index;
-        }
-    }
-
-    const mode_config_t config = {.die = oracle, .idle_ms = 120000, .coin_enabled = true};
+    const mode_config_t config = {
+        .die = die_index_of("ORACLE"),
+        .idle_ms = 120000,
+        .coin_enabled = true,
+        .effect_index = preview_effect
+    };
     mode_begin(0, &config);
     uint32_t now = 0;
     while (mode_get_current() == MODE_BOOT) {
@@ -288,7 +275,8 @@ static int render_roll(const char *die_name, const char *first, const char *seco
         return -1;
     }
 
-    const mode_config_t config = {.die = die, .idle_ms = 120000, .coin_enabled = true};
+    const mode_config_t config = {
+        .die = die, .idle_ms = 120000, .coin_enabled = true, .effect_index = preview_effect};
     mode_begin(0, &config);
     uint32_t now = 0;
     while (mode_get_current() == MODE_BOOT) {

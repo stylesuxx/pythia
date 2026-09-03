@@ -57,14 +57,6 @@ void settings_set_die_index(uint8_t index) {
 // Whether D2 is thrown as a coin, handed to the machine at begin.
 static bool coin_setting = true;
 
-/**
- * The interaction rules hold under every effect. The slide is pinned so the
- * roll cue counted below is one known haptic.
- */
-uint8_t settings_effect_index(void) {
-    return effect_index_of("slide");
-}
-
 static void reset_recording(void) {
     memset(haptic_counts, 0, sizeof(haptic_counts));
     persist_calls = 0;
@@ -117,7 +109,11 @@ static uint32_t step_until(uint32_t from, uint32_t to, ui_mode_t target) {
 // Runs boot with inputs that must be ignored. Returns the instant boot ended.
 static uint32_t boot_on(uint8_t die) {
     reset_recording();
-    const mode_config_t config = {.die = die, .idle_ms = IDLE_SLEEP_MS, .coin_enabled = coin_setting};
+    // The slide is pinned so the roll cue counted below is one known haptic.
+    const mode_config_t config = {.die = die,
+                                  .idle_ms = IDLE_SLEEP_MS,
+                                  .coin_enabled = coin_setting,
+                                  .effect_index = effect_index_of("slide")};
     mode_begin(0, &config);
     EXPECT(mode_get_current() == MODE_BOOT, "begin does not start in boot");
 
