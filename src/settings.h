@@ -33,6 +33,14 @@ void settings_set_effect_index(uint8_t index);
 uint8_t settings_die_index(void);
 void settings_set_die_index(uint8_t index);
 
+/**
+ * Counts boots that never reached the loop. Noted at the top of setup and
+ * cleared once the loop has run a while, so a firmware that dies before its
+ * USB port is up can still be caught and reflashed.
+ */
+uint8_t settings_note_boot_attempt(void);
+void settings_clear_boot_attempts(void);
+
 #ifdef __cplusplus
 }
 #endif

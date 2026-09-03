@@ -29,7 +29,7 @@ CC ?= gcc
 # -Wswitch-enum keeps a switch over an enum exhaustive even where it has a
 # default, so a new state is a compile error here rather than a fallback.
 CFLAGS ?= -O2 -std=gnu11 -Wall -Wextra -Wswitch-enum
-CPPFLAGS := -Isrc -Itools/host -Itools/host/third_party
+CPPFLAGS := -Isrc -Ilib/jsmn -Itools/host -Itools/host/third_party
 LDLIBS := -lm
 
 BUILD := build
@@ -41,7 +41,11 @@ FONT_GENERATOR := $(BUILD)/make_fonts
 # test program with its own main; its exit status is its verdict.
 SHARED_SOURCES := $(wildcard src/*.c) $(wildcard src/scenes/*.c) $(wildcard src/scenes/effects/*.c) \
                   $(wildcard src/render/*.c) $(wildcard src/render/generated/*.c) tools/host/adapters.c
-SHARED_OBJECTS := $(SHARED_SOURCES:%.c=$(BUILD)/%.o)
+# data/theme.json is the built-in palette, embedded verbatim on the device by
+# platformio.ini and here through a source generated from the same file.
+THEME_JSON := data/theme.json
+THEME_TEXT := $(BUILD)/generated/theme_text.c
+SHARED_OBJECTS := $(SHARED_SOURCES:%.c=$(BUILD)/%.o) $(THEME_TEXT:.c=.o)
 PREVIEW_SOURCES := tools/host/preview.c tools/host/gif.c
 PREVIEW_OBJECTS := $(PREVIEW_SOURCES:%.c=$(BUILD)/%.o) $(SHARED_OBJECTS)
 TEST_SOURCES := $(wildcard tests/*.c)
@@ -77,6 +81,14 @@ STB_TRUETYPE_COMMIT := 6e9f34d5429cf16790ec43c9bac3f1ee4ad1f760
 STB_TRUETYPE_URL := https://raw.githubusercontent.com/nothings/stb/$(STB_TRUETYPE_COMMIT)/stb_truetype.h
 STB_TRUETYPE_SHA256 := ecd30b05e0dd4fea3a13c26810dd9e1992dc379049482c393d5a19e6b5090aab
 STB_TRUETYPE := tools/host/third_party/stb_truetype.h
+
+# jsmn tokenises the user's JSON files on the device and on the host. A single
+# header with no allocation, pinned to the v1.1.0 tag's commit and checked by
+# hash. It lives under lib/ because the firmware compiles it too.
+JSMN_COMMIT := fdcef3ebf886fa210d14956d3c068a653e76a24e
+JSMN_URL := https://raw.githubusercontent.com/zserge/jsmn/$(JSMN_COMMIT)/jsmn.h
+JSMN_SHA256 := 1ed6154dedf009212a08a397e9c4ed50a0ce31d5a8301bb294e137ae3188c13b
+JSMN := lib/jsmn/jsmn.h
 
 PIO ?= $(HOME)/.platformio/penv/bin/pio
 ESPTOOL ?= $(HOME)/.platformio/penv/bin/python $(HOME)/.platformio/packages/tool-esptoolpy/esptool.py
@@ -134,6 +146,15 @@ $(BUILD)/%.o: %.c
 	@mkdir -p $(@D)
 	$(CC) $(CFLAGS) $(CPPFLAGS) -MMD -MP -c $< -o $@
 
+$(THEME_TEXT): $(THEME_JSON)
+	@mkdir -p $(@D)
+	{ printf '#include "theme_file.h"\n\n// $(THEME_JSON), verbatim.\nstatic const char TEXT[] =\n'; \
+	  sed -e 's/\\/\\\\/g' -e 's/"/\\"/g' -e 's/^/    "/' -e 's/$$/\\n"/' $<; \
+	  printf ';\n\nconst char *theme_builtin_text(void) {\n    return TEXT;\n}\n'; } > $@
+
+$(THEME_TEXT:.c=.o): $(THEME_TEXT)
+	$(CC) $(CFLAGS) $(CPPFLAGS) -c $< -o $@
+
 reveal: $(PREVIEW)
 	$(PREVIEW) reveal $(THEME) $(EFFECT) $(ANSWER) $(MODIFIER) $(CAPTION) $(REVEAL_GIF)
 
@@ -152,7 +173,7 @@ coin: $(PREVIEW)
 fonts: $(FONT_GENERATOR)
 	$(FONT_GENERATOR) src/render/generated
 
-deps: $(ST77916_SOURCE) $(STB_TRUETYPE)
+deps: $(ST77916_SOURCE) $(STB_TRUETYPE) $(JSMN)
 
 $(ST77916_SOURCE):
 	@mkdir -p $(BUILD)/deps
@@ -174,8 +195,17 @@ $(STB_TRUETYPE):
 	printf '%s  %s\n' $(STB_TRUETYPE_SHA256) $@.part | sha256sum -c -
 	mv $@.part $@
 
+$(JSMN):
+	@mkdir -p $(@D)
+	curl -sSfL $(JSMN_URL) -o $@.part
+	printf '%s  %s\n' $(JSMN_SHA256) $@.part | sha256sum -c -
+	mv $@.part $@
+
 # The font generator is the only thing that needs it, so fetch on demand.
 $(BUILD)/tools/make_fonts.o: $(STB_TRUETYPE)
+
+# The config parser is the only thing that includes it, so fetch on demand.
+$(BUILD)/src/config.o: $(JSMN)
 
 firmware: deps
 	$(PIO) run
@@ -198,6 +228,6 @@ clean:
 	rm -rf $(BUILD) $(RELEASE_BIN)
 
 distclean: clean
-	rm -rf $(ST77916_DIR) $(dir $(STB_TRUETYPE))
+	rm -rf $(ST77916_DIR) $(dir $(STB_TRUETYPE)) $(dir $(JSMN))
 
 -include $(DEPENDENCIES)

@@ -1,0 +1,11 @@
+{
+  "name": "midnight",
+  "colors": {
+    "background": "#080512",
+    "answer": "#FFCE6E",
+    "modifier": "#FFECBE",
+    "label": "#9276D6",
+    "ring": "#342A58",
+    "ring_active": "#FFCE6E"
+  }
+}

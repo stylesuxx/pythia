@@ -13,6 +13,7 @@
 #define KEY_THEME "theme"
 #define KEY_EFFECT "effect"
 #define KEY_DIE "die"
+#define KEY_BOOT_ATTEMPTS "boots"
 
 #define DEFAULT_ROTATED true
 #define DEFAULT_HAPTICS true
@@ -114,4 +115,16 @@ void settings_set_die_index(uint8_t index) {
 
     die_index = index;
     storage.putUChar(KEY_DIE, index);
+}
+
+uint8_t settings_note_boot_attempt(void) {
+    const uint8_t attempts = (uint8_t)(storage.getUChar(KEY_BOOT_ATTEMPTS, 0) + 1);
+    storage.putUChar(KEY_BOOT_ATTEMPTS, attempts);
+    return attempts;
+}
+
+void settings_clear_boot_attempts(void) {
+    if (storage.getUChar(KEY_BOOT_ATTEMPTS, 0) != 0) {
+        storage.putUChar(KEY_BOOT_ATTEMPTS, 0);
+    }
 }

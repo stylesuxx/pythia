@@ -10,6 +10,7 @@
 #include <stdlib.h>
 
 #include "esp_random.h"
+#include "files.h"
 #include "haptics.h"
 #include "settings.h"
 
@@ -29,4 +30,18 @@ __attribute__((weak)) void haptics_play(uint8_t effect) {
 
 __attribute__((weak)) void settings_set_die_index(uint8_t index) {
     (void)index;
+}
+
+// The host has no drive; a program with files to serve defines its own.
+__attribute__((weak)) bool files_read(const char *name, char **text, size_t *length) {
+    (void)name;
+    (void)text;
+    (void)length;
+    return false;
+}
+
+__attribute__((weak)) bool files_write(const char *name, const char *text) {
+    (void)name;
+    (void)text;
+    return false;
 }
