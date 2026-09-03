@@ -24,9 +24,6 @@ void settings_set_haptics_enabled(bool enabled);
 bool settings_is_coin_enabled(void);
 void settings_set_coin_enabled(bool enabled);
 
-uint8_t settings_theme_index(void);
-void settings_set_theme_index(uint8_t index);
-
 uint8_t settings_effect_index(void);
 void settings_set_effect_index(uint8_t index);
 

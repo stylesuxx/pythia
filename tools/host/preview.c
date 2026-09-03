@@ -345,32 +345,26 @@ static int render_coin(gif_writer_t *gif) {
 
 static void usage(void) {
     fprintf(stderr,
-            "usage: preview reveal <theme> <effect> <answer> <modifier|-> <caption> <output.gif>\n");
-    fprintf(stderr, "       preview roll <theme> <effect> <die> <first> <second> <output.gif>\n");
-    fprintf(stderr, "       preview boot <theme> <output.gif>\n");
-    fprintf(stderr, "       preview menu <theme> <output.gif>\n");
-    fprintf(stderr, "       preview coin <theme> <output.gif>\n");
+            "usage: preview reveal <effect> <answer> <modifier|-> <caption> <output.gif>\n");
+    fprintf(stderr, "       preview roll <effect> <die> <first> <second> <output.gif>\n");
+    fprintf(stderr, "       preview boot <output.gif>\n");
+    fprintf(stderr, "       preview menu <output.gif>\n");
+    fprintf(stderr, "       preview coin <output.gif>\n");
 }
 
 int main(int argument_count, char **arguments) {
-    const bool boot = argument_count == 4 && strcmp(arguments[1], "boot") == 0;
-    const bool menu = argument_count == 4 && strcmp(arguments[1], "menu") == 0;
-    const bool coin = argument_count == 4 && strcmp(arguments[1], "coin") == 0;
-    const bool reveal = argument_count == 8 && strcmp(arguments[1], "reveal") == 0;
-    const bool roll = argument_count == 8 && strcmp(arguments[1], "roll") == 0;
+    const bool boot = argument_count == 3 && strcmp(arguments[1], "boot") == 0;
+    const bool menu = argument_count == 3 && strcmp(arguments[1], "menu") == 0;
+    const bool coin = argument_count == 3 && strcmp(arguments[1], "coin") == 0;
+    const bool reveal = argument_count == 7 && strcmp(arguments[1], "reveal") == 0;
+    const bool roll = argument_count == 7 && strcmp(arguments[1], "roll") == 0;
     if (!boot && !menu && !coin && !reveal && !roll) {
         usage();
         return 1;
     }
 
-    for (uint8_t index = 0; index < THEME_COUNT; index++) {
-        if (strcmp(THEMES[index].name, arguments[2]) == 0) {
-            theme_select(index);
-        }
-    }
-
-    if ((reveal || roll) && !select_effect(arguments[3])) {
-        fprintf(stderr, "preview: no effect named %s; the table holds", arguments[3]);
+    if ((reveal || roll) && !select_effect(arguments[2])) {
+        fprintf(stderr, "preview: no effect named %s; the table holds", arguments[2]);
         for (uint8_t index = 0; index < EFFECT_COUNT; index++) {
             fprintf(stderr, " %s", EFFECTS[index]->name);
         }
@@ -399,9 +393,9 @@ int main(int argument_count, char **arguments) {
     } else if (coin) {
         frames = render_coin(&gif);
     } else if (roll) {
-        frames = render_roll(arguments[4], arguments[5], arguments[6], &gif);
+        frames = render_roll(arguments[3], arguments[4], arguments[5], &gif);
     } else {
-        frames = render_reveal(arguments[4], arguments[5], arguments[6], &gif);
+        frames = render_reveal(arguments[3], arguments[4], arguments[5], &gif);
     }
 
     if (!gif_end(&gif) || frames < 0) {

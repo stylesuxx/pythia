@@ -520,39 +520,36 @@ int main(void) {
         return 1;
     }
 
-    for (uint8_t index = 0; index < THEME_COUNT; index++) {
-        theme_select(index);
-        const theme_t *theme = theme_active();
-        reveal_select_effect(0);
-        const uint32_t until = concealed_until();
+    const theme_t *theme = theme_active();
+    reveal_select_effect(0);
+    const uint32_t until = concealed_until();
 
-        check_concealed_frames(theme, until);
-        check_concealed_cues(theme, until);
+    check_concealed_frames(theme, until);
+    check_concealed_cues(theme, until);
 
-        for (uint8_t outcome = 0; outcome < ORACLE_OUTCOME_COUNT; outcome++) {
-            const roll_t roll = oracle_outcome(outcome);
-            check_stage_band(theme, &roll, 0);
-        }
+    for (uint8_t outcome = 0; outcome < ORACLE_OUTCOME_COUNT; outcome++) {
+        const roll_t roll = oracle_outcome(outcome);
+        check_stage_band(theme, &roll, 0);
+    }
 
-        check_oracle_ignores_the_effect(theme);
-        check_effects_share_a_rest(theme);
-        check_effect_opens_as_named(theme);
+    check_oracle_ignores_the_effect(theme);
+    check_effects_share_a_rest(theme);
+    check_effect_opens_as_named(theme);
 
-        for (uint8_t effect = 0; effect < EFFECT_COUNT; effect++) {
-            for (size_t index = 0; index < NUMERIC_ROLL_COUNT; index++) {
-                for (size_t start = 0; start < START_TIME_COUNT; start++) {
-                    check_stage_band(theme, &NUMERIC_ROLLS[index], START_TIMES[start]);
-                    check_effect_settles_before_frames_stop(theme, effect, &NUMERIC_ROLLS[index],
-                                                            START_TIMES[start], start == 0);
-                    check_effect_plays_one_cue(theme, effect, &NUMERIC_ROLLS[index],
-                                               START_TIMES[start]);
-                }
+    for (uint8_t effect = 0; effect < EFFECT_COUNT; effect++) {
+        for (size_t index = 0; index < NUMERIC_ROLL_COUNT; index++) {
+            for (size_t start = 0; start < START_TIME_COUNT; start++) {
+                check_stage_band(theme, &NUMERIC_ROLLS[index], START_TIMES[start]);
+                check_effect_settles_before_frames_stop(theme, effect, &NUMERIC_ROLLS[index],
+                                                        START_TIMES[start], start == 0);
+                check_effect_plays_one_cue(theme, effect, &NUMERIC_ROLLS[index],
+                                           START_TIMES[start]);
             }
         }
-
-        printf("%s: concealed for %u ms, %u outcomes, %u effects\n", theme->name,
-               (unsigned)until, (unsigned)ORACLE_OUTCOME_COUNT, (unsigned)EFFECT_COUNT);
     }
+
+    printf("%s: concealed for %u ms, %u outcomes, %u effects\n", theme->name,
+           (unsigned)until, (unsigned)ORACLE_OUTCOME_COUNT, (unsigned)EFFECT_COUNT);
 
     if (failures > 0) {
         fprintf(stderr, "check: %d failure%s\n", failures, failures == 1 ? "" : "s");

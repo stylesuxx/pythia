@@ -97,7 +97,6 @@ UPLOAD_PORT_FLAG := $(if $(PORT),--upload-port $(PORT),)
 
 # The GIFs land in resources/, which is what the README shows, so the committed
 # animation is always the firmware's own rendering and git shows when it moved.
-THEME ?= midnight
 EFFECT ?= tear
 ANSWER ?= YES
 MODIFIER ?= and
@@ -156,19 +155,19 @@ $(THEME_TEXT:.c=.o): $(THEME_TEXT)
 	$(CC) $(CFLAGS) $(CPPFLAGS) -c $< -o $@
 
 reveal: $(PREVIEW)
-	$(PREVIEW) reveal $(THEME) $(EFFECT) $(ANSWER) $(MODIFIER) $(CAPTION) $(REVEAL_GIF)
+	$(PREVIEW) reveal $(EFFECT) $(ANSWER) $(MODIFIER) $(CAPTION) $(REVEAL_GIF)
 
 roll: $(PREVIEW)
-	$(PREVIEW) roll $(THEME) $(EFFECT) $(DIE) $(FIRST) $(SECOND) $(ROLL_GIF)
+	$(PREVIEW) roll $(EFFECT) $(DIE) $(FIRST) $(SECOND) $(ROLL_GIF)
 
 boot: $(PREVIEW)
-	$(PREVIEW) boot $(THEME) $(BOOT_GIF)
+	$(PREVIEW) boot $(BOOT_GIF)
 
 menu: $(PREVIEW)
-	$(PREVIEW) menu $(THEME) $(MENU_GIF)
+	$(PREVIEW) menu $(MENU_GIF)
 
 coin: $(PREVIEW)
-	$(PREVIEW) coin $(THEME) $(COIN_GIF)
+	$(PREVIEW) coin $(COIN_GIF)
 
 fonts: $(FONT_GENERATOR)
 	$(FONT_GENERATOR) src/render/generated

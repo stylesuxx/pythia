@@ -93,7 +93,6 @@ void setup() {
         return;
     }
 
-    theme_select(settings_theme_index());
     apply_user_files();
     panel_set_rotated(settings_is_display_rotated());
 

@@ -71,9 +71,7 @@ static void check_theme(const theme_t *theme) {
 }
 
 int main(void) {
-    for (uint8_t index = 0; index < THEME_COUNT; index++) {
-        check_theme(&THEMES[index]);
-    }
+    check_theme(theme_active());
 
     expect_glyphs(&font_boot_wordmark, "boot wordmark face", BOOT_WORDMARK);
     expect_glyphs(&font_boot_wordmark, "boot wordmark face", BOOT_SCRAMBLE_CHARACTERS);

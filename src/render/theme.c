@@ -8,31 +8,27 @@
 #include "render/generated/fonts.h"
 #include "theme_file.h"
 
-// The typefaces of each built-in theme; the palette comes from data/theme.json.
-const theme_t THEMES[] = {
-    {
-        .name = "midnight",
-        .answer_font = &font_midnight_answer,
-        .number_font = &font_midnight_number,
-        .label_font = &font_midnight_label,
-        .caption_font = &font_midnight_caption,
-        .coin_faces = {'1', '2'},
-    },
+// The built-in typefaces; the palette comes from data/theme.json.
+static const theme_t BUILT_IN_FACES = {
+    .name = "midnight",
+    .answer_font = &font_midnight_answer,
+    .number_font = &font_midnight_number,
+    .label_font = &font_midnight_label,
+    .caption_font = &font_midnight_caption,
+    .coin_faces = {'1', '2'},
 };
 
-const uint8_t THEME_COUNT = (uint8_t)(sizeof(THEMES) / sizeof(THEMES[0]));
-
 /*
- * The selected theme with the built-in palette laid on, and the user's file
- * laid over that when there is one. Each keeps its own copy of the name it
- * was given, since theme_t only points at one.
+ * The built-in look, the faces with data/theme.json laid on, resolved once at
+ * first use; and the look in use, which is that with the user's file laid
+ * over it. Each keeps its own copy of the name it was given, since theme_t
+ * only points at one.
  */
 static bool initialised = false;
-static theme_t base;
-static char base_name[CONFIG_NAME_CAPACITY];
-static theme_t overlay;
-static char overlay_name[CONFIG_NAME_CAPACITY];
-static bool has_overlay = false;
+static theme_t built_in;
+static char built_in_name[CONFIG_NAME_CAPACITY];
+static theme_t active;
+static char active_name[CONFIG_NAME_CAPACITY];
 
 // Where each colour of the file lands: the field its row names.
 #define THEME_SLOT_CASE(section, stem, key, fallback)                                             \
@@ -78,38 +74,38 @@ static void lay_over(theme_t *theme, char *name, const config_theme_t *parsed) {
     }
 }
 
-void theme_select(uint8_t index) {
-    if (index >= THEME_COUNT) {
+static void initialise(void) {
+    if (initialised) {
         return;
     }
 
-    base = THEMES[index];
-    has_overlay = false;
     initialised = true;
+    built_in = BUILT_IN_FACES;
 
+    /*
+     * tests/config.c holds data/theme.json to parsing in full and the firmware
+     * embeds those bytes, so a refusal here is a broken build; the faces still
+     * stand, over an unset palette.
+     */
     const char *text = theme_builtin_text();
-    config_theme_t built_in;
+    config_theme_t parsed;
     char error[CONFIG_ERROR_CAPACITY];
-    if (config_parse_theme(text, strlen(text), &built_in, error, sizeof(error))) {
-        lay_over(&base, base_name, &built_in);
+    if (config_parse_theme(text, strlen(text), &parsed, error, sizeof(error))) {
+        lay_over(&built_in, built_in_name, &parsed);
     }
+
+    active = built_in;
 }
 
 const theme_t *theme_active(void) {
-    if (!initialised) {
-        theme_select(0);
-    }
-
-    return has_overlay ? &overlay : &base;
+    initialise();
+    return &active;
 }
 
 void theme_apply_file(const config_theme_t *parsed) {
-    theme_active();
-    overlay = base;
-    lay_over(&overlay, overlay_name, parsed);
-    has_overlay = true;
-}
-
-void theme_reset(void) {
-    has_overlay = false;
+    initialise();
+    active = built_in;
+    if (parsed != NULL) {
+        lay_over(&active, active_name, parsed);
+    }
 }

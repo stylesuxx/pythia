@@ -4,13 +4,11 @@
 
 #include "scenes/effects/effect.h"
 #include "oracle.h"
-#include "render/theme.h"
 
 #define SETTINGS_NAMESPACE "die_oracle"
 #define KEY_ROTATED "rotated"
 #define KEY_HAPTICS "haptics"
 #define KEY_COIN "coin"
-#define KEY_THEME "theme"
 #define KEY_EFFECT "effect"
 #define KEY_DIE "die"
 #define KEY_BOOT_ATTEMPTS "boots"
@@ -18,14 +16,12 @@
 #define DEFAULT_ROTATED true
 #define DEFAULT_HAPTICS true
 #define DEFAULT_COIN true
-#define DEFAULT_THEME 0
 #define DEFAULT_EFFECT "tear"
 
 static Preferences storage;
 static bool display_rotated = DEFAULT_ROTATED;
 static bool haptics_enabled = DEFAULT_HAPTICS;
 static bool coin_enabled = DEFAULT_COIN;
-static uint8_t theme_index = DEFAULT_THEME;
 static uint8_t effect_index = 0;
 static uint8_t die_index = 0;
 
@@ -34,13 +30,8 @@ void settings_begin(void) {
     display_rotated = storage.getBool(KEY_ROTATED, DEFAULT_ROTATED);
     haptics_enabled = storage.getBool(KEY_HAPTICS, DEFAULT_HAPTICS);
     coin_enabled = storage.getBool(KEY_COIN, DEFAULT_COIN);
-    theme_index = storage.getUChar(KEY_THEME, DEFAULT_THEME);
     effect_index = storage.getUChar(KEY_EFFECT, effect_index_of(DEFAULT_EFFECT));
     die_index = storage.getUChar(KEY_DIE, die_index_of("ORACLE"));
-
-    if (theme_index >= THEME_COUNT) {
-        theme_index = DEFAULT_THEME;
-    }
 
     if (effect_index >= EFFECT_COUNT) {
         effect_index = effect_index_of(DEFAULT_EFFECT);
@@ -76,19 +67,6 @@ bool settings_is_coin_enabled(void) {
 void settings_set_coin_enabled(bool enabled) {
     coin_enabled = enabled;
     storage.putBool(KEY_COIN, enabled);
-}
-
-uint8_t settings_theme_index(void) {
-    return theme_index;
-}
-
-void settings_set_theme_index(uint8_t index) {
-    if (index >= THEME_COUNT) {
-        return;
-    }
-
-    theme_index = index;
-    storage.putUChar(KEY_THEME, index);
 }
 
 uint8_t settings_effect_index(void) {

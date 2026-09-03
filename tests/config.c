@@ -2,7 +2,7 @@
  * The user's theme file, parsed on the host. A full file lands on every
  * screen's palette, a partial one keeps what it does not name, a section key
  * left out follows the file's general role, and every kind of mistake is
- * refused with the key named and nothing applied. The files port is scripted
+ * refused with the key named and the look in use kept. The files port is scripted
  * here, so the whole path from bytes on the drive to the palette the canvas
  * draws with runs without a device.
  */
@@ -74,6 +74,13 @@ static bool apply(const char *text, char *error) {
 #define WHITE CANVAS_RGB(0xFF, 0xFF, 0xFF)
 #define RED CANVAS_RGB(0xFF, 0x00, 0x00)
 
+// True when every colour of one theme matches the other's.
+static bool has_same_palette(const theme_t *a, const theme_t *b) {
+#define SAME_COLOR(section, stem, key, fallback) &&a->section.key == b->section.key
+#define SAME_SECTION(section, LIST) LIST(SAME_COLOR)
+    return true CONFIG_SECTIONS(SAME_SECTION);
+}
+
 /*
  * The built-in file is the one source of the palette, so it must name every
  * colour of every section and parse in full, and every one of them must land
@@ -89,7 +96,7 @@ static void check_built_in_file_is_complete(void) {
                CONFIG_COLORS[which].section, CONFIG_COLORS[which].key);
     }
 
-    theme_select(0);
+    theme_apply_file(NULL);
     const theme_t *theme = theme_active();
 #define EXPECT_LANDED(section, stem, key, fallback)                                               \
     EXPECT(theme->section.key == parsed.color[CONFIG_##stem],                                     \
@@ -128,7 +135,7 @@ static void check_a_section_key_is_parsed(void) {
 
 static void check_general_roles_reach_the_screens(void) {
     char error[CONFIG_ERROR_CAPACITY] = "";
-    theme_select(0);
+    theme_apply_file(NULL);
     const uint16_t built_in_modifier = theme_active()->oracle.modifier;
     const uint16_t built_in_ring = theme_active()->list.ring;
 
@@ -144,7 +151,7 @@ static void check_general_roles_reach_the_screens(void) {
 
 static void check_a_section_key_wins_over_its_role(void) {
     char error[CONFIG_ERROR_CAPACITY] = "";
-    theme_select(0);
+    theme_apply_file(NULL);
     EXPECT(apply("{\"colors\": {\"primary\": \"#FFFFFF\"}, \"numbers\": {\"text\": \"#FF0000\"}}",
                  error),
            "refused: %s", error);
@@ -154,7 +161,7 @@ static void check_a_section_key_wins_over_its_role(void) {
 
 static void check_a_section_key_alone_keeps_the_rest(void) {
     char error[CONFIG_ERROR_CAPACITY] = "";
-    theme_select(0);
+    theme_apply_file(NULL);
     const theme_t before = *theme_active();
     EXPECT(apply("{\"numbers\": {\"text\": \"#FF0000\"}}", error), "refused: %s", error);
     const theme_t *theme = theme_active();
@@ -199,13 +206,13 @@ static void check_mistakes_are_named(void) {
 
 static void check_user_files_apply(void) {
     char error[CONFIG_ERROR_CAPACITY] = "";
-    theme_select(0);
-    const theme_t *built_in = theme_active();
-    const uint16_t built_in_background = built_in->colors.background;
+    theme_apply_file(NULL);
+    const theme_t built_in = *theme_active();
 
     written_name[0] = '\0';
     EXPECT(apply(NULL, error), "no file was treated as an error: %s", error);
-    EXPECT(theme_active() == built_in, "no file changed the active theme");
+    EXPECT(has_same_palette(theme_active(), &built_in), "no file changed the palette");
+    EXPECT(strcmp(theme_active()->name, built_in.name) == 0, "no file changed the name");
     EXPECT(strcmp(written_name, "theme.json") == 0, "no theme.json was written back, got \"%s\"",
            written_name);
     EXPECT(strcmp(written_text, theme_builtin_text()) == 0,
@@ -213,18 +220,26 @@ static void check_user_files_apply(void) {
 
     EXPECT(apply("{\"name\": \"parchment\", \"colors\": {\"background\": \"#F2E6C9\"}}", error),
            "refused: %s", error);
-    EXPECT(theme_active()->colors.background == CANVAS_RGB(0xF2, 0xE6, 0xC9), "the palette was not applied");
-    EXPECT(theme_active()->answer_font == THEMES[0].answer_font, "the fonts did not carry over");
+    EXPECT(theme_active()->colors.background == CANVAS_RGB(0xF2, 0xE6, 0xC9),
+           "the palette was not applied");
+    EXPECT(theme_active()->answer_font == built_in.answer_font, "the fonts did not carry over");
     EXPECT(strcmp(theme_active()->name, "parchment") == 0, "the file's name was not taken");
 
     EXPECT(apply("{\"numbers\": {\"text\": \"#FFFFFF\"}}", error), "refused: %s", error);
-    EXPECT(theme_active()->colors.background == built_in_background,
+    EXPECT(theme_active()->colors.background == built_in.colors.background,
            "a colour the new file omits kept the previous file's value");
+    EXPECT(strcmp(theme_active()->name, built_in.name) == 0,
+           "a file without a name kept the previous file's name, %s", theme_active()->name);
 
+    // A refused file changes nothing: the look the last good file gave stays.
     EXPECT(!apply("{\"oracle\": {\"answer\": \"white\"}}", error), "a bad file was applied");
     EXPECT(strcmp(error, "theme.json: oracle.answer: expected \"#RRGGBB\"") == 0,
            "the error did not name the file and key: %s", error);
-    EXPECT(theme_active() == built_in, "a refused file left a palette applied");
+    EXPECT(theme_active()->numbers.text == WHITE, "a refused file dropped the look in use");
+
+    EXPECT(apply(NULL, error), "no file was treated as an error: %s", error);
+    EXPECT(has_same_palette(theme_active(), &built_in),
+           "deleting the file did not restore the built-in look");
 }
 
 int main(void) {

@@ -79,10 +79,7 @@ int main(void) {
         return 1;
     }
 
-    for (uint8_t index = 0; index < THEME_COUNT; index++) {
-        theme_select(index);
-        check_every_name_fits_the_rect(theme_active());
-    }
+    check_every_name_fits_the_rect(theme_active());
     check_the_rect_clears_both_stages();
 
     if (failures > 0) {
