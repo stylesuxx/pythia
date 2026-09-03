@@ -8,7 +8,7 @@
 #include <stdint.h>
 #include <stdio.h>
 
-#include "canvas.h"
+#include "render/canvas.h"
 #include "frame.h"
 
 #define BACKGROUND 0x1234

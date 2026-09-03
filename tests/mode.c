@@ -9,14 +9,14 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "canvas.h"
-#include "coin.h"
-#include "effects/effect.h"
+#include "render/canvas.h"
+#include "scenes/coin.h"
+#include "scenes/effects/effect.h"
 #include "haptics.h"
 #include "mode.h"
 #include "oracle.h"
 #include "power.h"
-#include "reveal.h"
+#include "scenes/reveal.h"
 #include "settings.h"
 
 #define STEP_MS 2

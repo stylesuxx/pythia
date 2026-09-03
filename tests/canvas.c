@@ -11,7 +11,7 @@
 #include <stdint.h>
 #include <stdio.h>
 
-#include "canvas.h"
+#include "render/canvas.h"
 
 #define CENTRE 180.0f
 #define BACKGROUND 0x0000

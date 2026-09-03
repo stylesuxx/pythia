@@ -2,7 +2,7 @@
 
 #include <stddef.h>
 
-#include "canvas.h"
+#include "render/canvas.h"
 
 #define FRAME_INTERVAL_MS 16
 

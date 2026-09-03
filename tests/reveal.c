@@ -23,13 +23,13 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "canvas.h"
-#include "effects/effect.h"
+#include "render/canvas.h"
+#include "scenes/effects/effect.h"
 #include "haptics.h"
 #include "oracle.h"
-#include "reveal.h"
+#include "scenes/reveal.h"
 #include "settings.h"
-#include "theme.h"
+#include "render/theme.h"
 
 #define STEP_MS 1
 #define FRAME_ALPHA 255

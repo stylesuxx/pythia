@@ -2,8 +2,8 @@
 
 #include <stddef.h>
 
-#include "coin.h"
-#include "reveal.h"
+#include "scenes/coin.h"
+#include "scenes/reveal.h"
 
 typedef struct {
     void (*begin)(const roll_t *roll, uint32_t now);

@@ -2,17 +2,17 @@
 
 #include <math.h>
 
-#include "boot.h"
-#include "canvas.h"
+#include "scenes/boot.h"
+#include "render/canvas.h"
 #include "frame.h"
 #include "haptics.h"
-#include "menu.h"
+#include "scenes/menu.h"
 #include "oracle.h"
 #include "power.h"
-#include "reveal.h"
+#include "scenes/reveal.h"
 #include "settings.h"
 #include "stage.h"
-#include "theme.h"
+#include "render/theme.h"
 
 // The knob has no button, so stillness is what confirms a choice.
 #define SELECTION_IDLE_MS 1000

@@ -8,17 +8,17 @@
 #include <Arduino.h>
 #include <Wire.h>
 
-#include "canvas.h"
-#include "encoder.h"
+#include "render/canvas.h"
+#include "hardware/encoder.h"
 #include "frame.h"
 #include "haptics.h"
 #include "knob_pins.h"
 #include "mode.h"
 #include "oracle.h"
-#include "panel.h"
+#include "hardware/panel.h"
 #include "settings.h"
-#include "theme.h"
-#include "touch_cst816.h"
+#include "render/theme.h"
+#include "hardware/touch_cst816.h"
 
 #define TOUCH_DEBOUNCE_MS 250
 
@@ -36,9 +36,7 @@ static uint32_t last_touch_ms = 0;
 static bool was_touched = false;
 
 static bool touch_began(uint32_t now) {
-    uint16_t x = 0;
-    uint16_t y = 0;
-    const bool pressed = is_touch_pressed(x, y);
+    const bool pressed = touch_read().pressed;
     const bool began = pressed && !was_touched && (now - last_touch_ms) > TOUCH_DEBOUNCE_MS;
 
     was_touched = pressed;
@@ -72,7 +70,7 @@ void setup() {
     panel_set_backlight(255);
 
     Wire.begin(PIN_I2C_SDA, PIN_I2C_SCL, 400000);
-    touch_init();
+    touch_begin();
     haptics_begin();
     encoder_begin();
     oracle_begin();

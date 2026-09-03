@@ -7,9 +7,9 @@
 #include <math.h>
 #include <stdio.h>
 
-#include "canvas.h"
-#include "coin.h"
-#include "theme.h"
+#include "render/canvas.h"
+#include "scenes/coin.h"
+#include "render/theme.h"
 
 #define STEP_MS 4
 #define FLIP_LIMIT_MS 4000

@@ -10,7 +10,7 @@
 #   make menu                render one full turn through the die list to menu.gif
 #   make coin                render the D2 coin turning and flipping to coin.gif
 #   make check               build and run every test program under tests/
-#   make fonts               regenerate src/generated from the DejaVu faces
+#   make fonts               regenerate src/render/generated from the DejaVu faces
 #   make deps                fetch the third-party sources (none are committed)
 #   make firmware            deps, then PlatformIO
 #   make release             firmware, merged into one image for web flashers
@@ -18,7 +18,7 @@
 #   make clean               remove build output
 #   make distclean           also remove the fetched driver
 #
-# Sources are globbed, so a new .c under src/ or src/effects/ joins the preview
+# Sources are globbed, so a new .c under src/, src/scenes/ or src/render/ joins the preview
 # without editing this file, and a new .c under tests/ becomes a test program that make check
 # runs. Anything they need from the ESP-IDF gets a stub in tools/host.
 #
@@ -39,7 +39,8 @@ FONT_GENERATOR := $(BUILD)/make_fonts
 # The rendering sources are shared; each host program adds its own file and
 # its own adapters for the hardware it stands in for. Every tests/*.c is one
 # test program with its own main; its exit status is its verdict.
-SHARED_SOURCES := $(wildcard src/*.c) $(wildcard src/effects/*.c) $(wildcard src/generated/*.c) tools/host/adapters.c
+SHARED_SOURCES := $(wildcard src/*.c) $(wildcard src/scenes/*.c) $(wildcard src/scenes/effects/*.c) \
+                  $(wildcard src/render/*.c) $(wildcard src/render/generated/*.c) tools/host/adapters.c
 SHARED_OBJECTS := $(SHARED_SOURCES:%.c=$(BUILD)/%.o)
 PREVIEW_SOURCES := tools/host/preview.c tools/host/gif.c
 PREVIEW_OBJECTS := $(PREVIEW_SOURCES:%.c=$(BUILD)/%.o) $(SHARED_OBJECTS)
@@ -69,7 +70,7 @@ ST77916_SOURCE := $(ST77916_DIR)/src/esp_lcd_st77916.c
 ST77916_PARTS := $(subst ., ,$(ST77916_VERSION))
 
 # stb_truetype rasterises the fonts in tools/make_fonts.c. Pinned to a commit
-# rather than a branch, and checked by hash, because src/generated is committed:
+# rather than a branch, and checked by hash, because src/render/generated is committed:
 # the glyph bytes in the repo have to stay reproducible from this exact header.
 STB_TRUETYPE_VERSION := 1.26
 STB_TRUETYPE_COMMIT := 6e9f34d5429cf16790ec43c9bac3f1ee4ad1f760
@@ -147,7 +148,7 @@ coin: $(PREVIEW)
 	$(PREVIEW) coin $(THEME) $(COIN_GIF)
 
 fonts: $(FONT_GENERATOR)
-	$(FONT_GENERATOR) src/generated
+	$(FONT_GENERATOR) src/render/generated
 
 deps: $(ST77916_SOURCE) $(STB_TRUETYPE)
 

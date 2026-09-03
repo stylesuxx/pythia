@@ -8,11 +8,11 @@
 #include <stdbool.h>
 #include <stdio.h>
 
-#include "boot.h"
-#include "font.h"
-#include "generated/fonts.h"
+#include "scenes/boot.h"
+#include "render/font.h"
+#include "render/generated/fonts.h"
 #include "oracle.h"
-#include "theme.h"
+#include "render/theme.h"
 
 static int failures = 0;
 

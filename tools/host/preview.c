@@ -9,16 +9,16 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "boot.h"
-#include "canvas.h"
-#include "coin.h"
-#include "effects/effect.h"
+#include "scenes/boot.h"
+#include "render/canvas.h"
+#include "scenes/coin.h"
+#include "scenes/effects/effect.h"
 #include "esp_random.h"
 #include "mode.h"
 #include "oracle.h"
-#include "reveal.h"
+#include "scenes/reveal.h"
 #include "settings.h"
-#include "theme.h"
+#include "render/theme.h"
 
 #include "gif.h"
 

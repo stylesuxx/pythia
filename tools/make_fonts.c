@@ -259,7 +259,7 @@ static bool generate_font(const font_spec_t *spec, const char *output_directory)
         glyph_count++;
     }
 
-    fputs("#include \"font.h\"\n\n", out);
+    fputs("#include \"render/font.h\"\n\n", out);
     fprintf(out, "static const uint8_t %s_coverage[] = {\n", spec->name);
     write_bytes(out, &coverage);
     fputs("};\n\n", out);
@@ -296,7 +296,7 @@ static bool write_header(const char *output_directory) {
         return false;
     }
 
-    fputs("#pragma once\n\n#include \"font.h\"\n\n#ifdef __cplusplus\nextern \"C\" {\n#endif\n\n", out);
+    fputs("#pragma once\n\n#include \"render/font.h\"\n\n#ifdef __cplusplus\nextern \"C\" {\n#endif\n\n", out);
     for (size_t index = 0; index < FONT_COUNT; index++) {
         fprintf(out, "extern const font_t %s;\n", FONTS[index].name);
     }

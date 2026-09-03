@@ -9,7 +9,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#include "effects/effect.h"
+#include "scenes/effects/effect.h"
 #include "esp_random.h"
 #include "haptics.h"
 #include "settings.h"
