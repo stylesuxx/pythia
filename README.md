@@ -30,7 +30,7 @@ On power-up the terminal runs its self-test. After about five seconds the termin
 
 1. **Turn the knob** to browse the die list. A tick ring around the rim tracks your position.
 2. **Hold still for one second.** The selection is confirmed and the display fades to black. The terminal is now armed.
-3. **Touch the screen** to roll. A touch while the list is still showing takes the highlighted die and rolls it at once. The result stays on screen until the next touch, which rolls again.
+3. **Touch the screen** to roll. A touch while the list is still showing takes the highlighted die and rolls it at once. A numeric result locks on with a brief signal tear, the same flicker the self-test shows; the oracle's answer slides in and holds before its modifier strikes. The result stays on screen until the next touch, which rolls again.
 4. **Turn the knob** at any time to return to the list.
 5. **Leave the terminal alone for two minutes** and the display goes dark. Touch the screen or turn the knob to bring it back exactly as it was. The touch that wakes it does not roll.
 
@@ -44,7 +44,7 @@ Every animation below is rendered by the host preview from the same code the ter
 <td align="center"><img src="resources/menu.gif" width="330" alt="Turning the knob through the die list"><br /><b>Die list</b></td>
 </tr>
 <tr>
-<td align="center"><img src="resources/d100.gif" width="330" alt="A D100 roll landing on 87"><br /><b>D100 roll</b></td>
+<td align="center"><img src="resources/d100.gif" width="330" alt="A D100 showing 42, then rolling again and locking on to 87 through a signal tear"><br /><b>D100 roll</b></td>
 <td align="center"><img src="resources/reveal.gif" width="330" alt="An oracle consultation answering YES, AND"><br /><b>Oracle</b></td>
 </tr>
 <tr>
@@ -95,11 +95,11 @@ make boot                                          # boot.gif
 make menu                                          # menu.gif
 make reveal                                        # reveal.gif
 make reveal ANSWER=NO MODIFIER=-
-make reveal ANSWER=87 MODIFIER=- CAPTION=D100
-make reveal ANSWER=87 MODIFIER=- CAPTION=D100 EFFECT=slide
+make roll DIE=D100 FIRST=42 SECOND=87                # roll.gif, one result giving way to the next
+make roll DIE=D100 FIRST=42 SECOND=87 EFFECT=slide
 ```
 
-What it renders is what the panel draws, down to RGB565 quantisation. Each target writes to the repository root by default; the copies in section 4 were written straight into `resources/` by passing `BOOT_GIF`, `MENU_GIF` or `REVEAL_GIF`.
+What it renders is what the panel draws, down to RGB565 quantisation. Each target writes to the repository root by default; the copies in section 4 were written straight into `resources/` by passing `BOOT_GIF`, `MENU_GIF`, `ROLL_GIF` or `REVEAL_GIF`.
 
 ## 8. Notices
 

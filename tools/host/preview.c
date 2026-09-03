@@ -6,12 +6,14 @@
 
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "boot.h"
 #include "canvas.h"
 #include "coin.h"
 #include "effects/effect.h"
+#include "esp_random.h"
 #include "mode.h"
 #include "oracle.h"
 #include "reveal.h"
@@ -30,6 +32,15 @@
 // Time the finished reveal stays on screen before the GIF loops.
 #define REVEAL_END_HOLD_MS 3000
 
+/*
+ * The roll render: a pause on the armed screen, a tap, the first result held
+ * long enough to read, a second tap, and the second result held until the
+ * GIF loops.
+ */
+#define ROLL_LEAD_MS 400
+#define ROLL_HOLD_MS 1600
+#define ROLL_END_HOLD_MS 2200
+
 /**
  * The list render: a pause on the armed screen, one click per die around the
  * whole list, then long enough for the choice to settle back into the armed
@@ -43,6 +54,65 @@
 #define SURROUND_RGB565 0x18C3
 
 static uint16_t frame_pixels[CANVAS_WIDTH * CANVAS_HEIGHT];
+
+/*
+ * Scripted entropy, so a rendered roll lands on the numbers asked for. Draws
+ * are handed out in order; once they run out the draws are whatever rand()
+ * gives, which nothing rendered here depends on.
+ */
+#define SCRIPT_MAX 8
+static uint32_t scripted_draws[SCRIPT_MAX];
+static int scripted_count = 0;
+static int scripted_next = 0;
+
+uint32_t esp_random(void) {
+    if (scripted_next < scripted_count) {
+        return scripted_draws[scripted_next++];
+    }
+
+    return (uint32_t)rand();
+}
+
+static void script_draw(uint32_t draw) {
+    if (scripted_count < SCRIPT_MAX) {
+        scripted_draws[scripted_count++] = draw;
+    }
+}
+
+/**
+ * Queues the draws that make die land on value. False when the die cannot
+ * show that value, or is not one whose result is a number.
+ */
+static bool script_result(const die_t *die, unsigned long value) {
+    switch (die->kind) {
+        case DIE_NUMERIC: {
+            if (value < 1 || value > die->sides) {
+                return false;
+            }
+
+            script_draw((uint32_t)(value - 1));
+            return true;
+        }
+
+        case DIE_D66: {
+            const unsigned long tens = value / 10;
+            const unsigned long units = value % 10;
+            if (tens < 1 || tens > 6 || units < 1 || units > 6 || value > 66) {
+                return false;
+            }
+
+            script_draw((uint32_t)(tens - 1));
+            script_draw((uint32_t)(units - 1));
+            return true;
+        }
+
+        case DIE_COIN:
+        case DIE_ORACLE:
+            return false;
+    }
+
+    return false;
+}
 
 void haptics_begin(void) {}
 
@@ -190,6 +260,63 @@ static int render_menu(gif_writer_t *gif) {
     return frames;
 }
 
+/*
+ * Two taps on one die, driven through the mode machine: the first result
+ * arrives from the armed screen, holds, then gives way to the second exactly
+ * as it does on the device, the standing number fading out before the next
+ * one comes in through the chosen effect.
+ */
+static int render_roll(const char *die_name, const char *first, const char *second,
+                       gif_writer_t *gif) {
+    const mode_input_t nothing = {0, false};
+    uint8_t die = DIE_COUNT;
+    for (uint8_t index = 0; index < DIE_COUNT; index++) {
+        if (strcmp(DICE[index].name, die_name) == 0) {
+            die = index;
+        }
+    }
+
+    if (die == DIE_COUNT) {
+        fprintf(stderr, "preview: no die named %s\n", die_name);
+        return -1;
+    }
+
+    if (!script_result(&DICE[die], strtoul(first, NULL, 10)) ||
+        !script_result(&DICE[die], strtoul(second, NULL, 10))) {
+        fprintf(stderr, "preview: %s cannot roll %s then %s\n", die_name, first, second);
+        return -1;
+    }
+
+    mode_begin(0, die, 120000);
+    uint32_t now = 0;
+    while (mode_current() == MODE_BOOT) {
+        mode_step(now, nothing);
+        now += FRAME_INTERVAL_MS;
+    }
+
+    const uint32_t first_tap = now + ROLL_LEAD_MS;
+    const uint32_t second_tap = first_tap + ROLL_HOLD_MS;
+    const uint32_t end = second_tap + ROLL_END_HOLD_MS;
+    int taps = 0;
+    int frames = 0;
+    for (; now <= end; now += FRAME_INTERVAL_MS) {
+        mode_input_t input = nothing;
+        if ((taps == 0 && now >= first_tap) || (taps == 1 && now >= second_tap)) {
+            input.tap = true;
+            taps++;
+        }
+
+        mode_step(now, input);
+        if (!encode_frame(gif)) {
+            return -1;
+        }
+
+        frames++;
+    }
+
+    return frames;
+}
+
 // One throw: the coin at rest on a face, then tumbling and landing on another.
 static int render_coin(gif_writer_t *gif) {
     const uint32_t rest_ms = 400;
@@ -228,6 +355,7 @@ static int render_coin(gif_writer_t *gif) {
 static void usage(void) {
     fprintf(stderr,
             "usage: preview reveal <theme> <effect> <answer> <modifier|-> <caption> <output.gif>\n");
+    fprintf(stderr, "       preview roll <theme> <effect> <die> <first> <second> <output.gif>\n");
     fprintf(stderr, "       preview boot <theme> <output.gif>\n");
     fprintf(stderr, "       preview menu <theme> <output.gif>\n");
     fprintf(stderr, "       preview coin <theme> <output.gif>\n");
@@ -238,7 +366,8 @@ int main(int argument_count, char **arguments) {
     const bool menu = argument_count == 4 && strcmp(arguments[1], "menu") == 0;
     const bool coin = argument_count == 4 && strcmp(arguments[1], "coin") == 0;
     const bool reveal = argument_count == 8 && strcmp(arguments[1], "reveal") == 0;
-    if (!boot && !menu && !coin && !reveal) {
+    const bool roll = argument_count == 8 && strcmp(arguments[1], "roll") == 0;
+    if (!boot && !menu && !coin && !reveal && !roll) {
         usage();
         return 1;
     }
@@ -249,7 +378,7 @@ int main(int argument_count, char **arguments) {
         }
     }
 
-    if (reveal && !select_effect(arguments[3])) {
+    if ((reveal || roll) && !select_effect(arguments[3])) {
         fprintf(stderr, "preview: no effect named %s; the table holds", arguments[3]);
         for (uint8_t index = 0; index < EFFECT_COUNT; index++) {
             fprintf(stderr, " %s", EFFECTS[index]->name);
@@ -278,6 +407,8 @@ int main(int argument_count, char **arguments) {
         frames = render_menu(&gif);
     } else if (coin) {
         frames = render_coin(&gif);
+    } else if (roll) {
+        frames = render_roll(arguments[4], arguments[5], arguments[6], &gif);
     } else {
         frames = render_reveal(arguments[4], arguments[5], arguments[6], &gif);
     }

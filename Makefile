@@ -4,6 +4,8 @@
 #   make reveal              render the oracle reveal to reveal.gif
 #   make reveal ANSWER=NO MODIFIER=-
 #   make reveal ANSWER=17 MODIFIER=- CAPTION=D20 EFFECT=slide
+#   make roll                render two taps on a numeric die to roll.gif
+#   make roll DIE=D66 FIRST=31 SECOND=66 EFFECT=slide
 #   make boot                render the power-on sequence to boot.gif
 #   make menu                render one full turn through the die list to menu.gif
 #   make coin                render the D2 coin turning and flipping to coin.gif
@@ -84,6 +86,10 @@ ANSWER ?= YES
 MODIFIER ?= and
 CAPTION ?= ORACLE
 REVEAL_GIF ?= reveal.gif
+DIE ?= D100
+FIRST ?= 42
+SECOND ?= 87
+ROLL_GIF ?= roll.gif
 BOOT_GIF ?= boot.gif
 MENU_GIF ?= menu.gif
 COIN_GIF ?= coin.gif
@@ -94,7 +100,7 @@ FIRMWARE_DIR := .pio/build/knob
 BOOT_APP0 := $(HOME)/.platformio/packages/framework-arduinoespressif32/tools/partitions/boot_app0.bin
 RELEASE_BIN ?= pythia.bin
 
-.PHONY: all preview check reveal boot menu fonts deps firmware release upload monitor clean distclean
+.PHONY: all preview check reveal roll boot menu fonts deps firmware release upload monitor clean distclean
 
 # Test objects are reached through a pattern rule chain, and make would delete
 # them as intermediates after every run, rebuilding them the next time.
@@ -125,6 +131,9 @@ $(BUILD)/%.o: %.c
 
 reveal: $(PREVIEW)
 	$(PREVIEW) reveal $(THEME) $(EFFECT) $(ANSWER) $(MODIFIER) $(CAPTION) $(REVEAL_GIF)
+
+roll: $(PREVIEW)
+	$(PREVIEW) roll $(THEME) $(EFFECT) $(DIE) $(FIRST) $(SECOND) $(ROLL_GIF)
 
 boot: $(PREVIEW)
 	$(PREVIEW) boot $(THEME) $(BOOT_GIF)
