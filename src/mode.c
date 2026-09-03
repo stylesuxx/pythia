@@ -7,6 +7,7 @@
 #include "frame.h"
 #include "haptics.h"
 #include "scenes/caption.h"
+#include "dice.h"
 #include "scenes/menu.h"
 #include "oracle.h"
 #include "power.h"
@@ -69,7 +70,7 @@ static uint8_t fade_alpha(uint32_t now) {
 }
 
 static void roll_and_reveal(uint32_t now) {
-    const roll_t roll = roll_die(&DICE[selected]);
+    const roll_t roll = roll_die(&dice_active()[selected]);
     stage_begin(&roll, now);
     mode = MODE_RESULT;
     start_fade(255.0f, 255.0f, 0, now);
@@ -77,7 +78,7 @@ static void roll_and_reveal(uint32_t now) {
 }
 
 static void settle_choice(void) {
-    settings_set_die_index(selected);
+    settings_set_die_name(dice_active()[selected].name);
 }
 
 static void handle_boot(uint32_t now) {
@@ -97,9 +98,10 @@ static void handle_boot(uint32_t now) {
 }
 
 static void handle_rotation(uint32_t now, int32_t detents) {
-    int32_t next = ((int32_t)selected + detents) % (int32_t)DIE_COUNT;
+    const int32_t count = (int32_t)dice_count();
+    int32_t next = ((int32_t)selected + detents) % count;
     if (next < 0) {
-        next += DIE_COUNT;
+        next += count;
     }
     selected = (uint8_t)next;
 
@@ -205,7 +207,7 @@ static void draw_scene(void *context, frame_rect_t rows) {
     }
 
     if (frame_rect_is_overlapping(rows, caption_get_rect())) {
-        caption_draw(DICE[selected].name, caption_alpha);
+        caption_draw(dice_active()[selected].name, caption_alpha);
     }
 }
 
@@ -243,8 +245,8 @@ static frame_rect_t render(uint32_t now) {
 }
 
 void mode_begin(uint32_t now, const mode_config_t *config) {
-    selected = config->die < DIE_COUNT ? config->die : die_index_of("ORACLE");
-    stage_configure(config->coin_enabled, config->effect_index);
+    selected = config->die < dice_count() ? config->die : dice_index_of("ORACLE");
+    stage_configure(config->coin_enabled);
     mode = MODE_BOOT;
     pending = PENDING_NONE;
     last_rotation_ms = now;

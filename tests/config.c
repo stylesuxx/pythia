@@ -17,7 +17,7 @@
 #include "files.h"
 #include "render/canvas.h"
 #include "render/theme.h"
-#include "theme_file.h"
+#include "builtin_files.h"
 #include "user_files.h"
 
 static int failures = 0;
@@ -52,8 +52,12 @@ static char written_name[32] = "";
 static char written_text[1024] = "";
 
 bool files_write(const char *name, const char *text) {
-    snprintf(written_name, sizeof(written_name), "%s", name);
-    snprintf(written_text, sizeof(written_text), "%s", text);
+    // The layout is written back too; only the theme is watched here.
+    if (strcmp(name, "theme.json") == 0) {
+        snprintf(written_name, sizeof(written_name), "%s", name);
+        snprintf(written_text, sizeof(written_text), "%s", text);
+    }
+
     return true;
 }
 
@@ -66,9 +70,10 @@ static bool parse(const char *text, config_theme_t *theme, char *error) {
     return config_parse_theme(text, strlen(text), theme, error, CONFIG_ERROR_CAPACITY);
 }
 
+// The message carries a line per file; the theme's is the first.
 static bool apply(const char *text, char *error) {
     serve(text);
-    return user_files_apply(error, CONFIG_ERROR_CAPACITY);
+    return user_files_apply(error, USER_FILES_MESSAGE_CAPACITY);
 }
 
 #define WHITE CANVAS_RGB(0xFF, 0xFF, 0xFF)
@@ -88,7 +93,7 @@ static bool has_same_palette(const theme_t *a, const theme_t *b) {
  */
 static void check_built_in_file_is_complete(void) {
     config_theme_t parsed;
-    char error[CONFIG_ERROR_CAPACITY] = "";
+    char error[USER_FILES_MESSAGE_CAPACITY] = "";
     EXPECT(parse(theme_builtin_text(), &parsed, error), "data/theme.json was refused: %s", error);
     EXPECT(parsed.name[0] != '\0', "data/theme.json has no name");
     for (int which = 0; which < CONFIG_COLOR_COUNT; which++) {
@@ -121,7 +126,7 @@ static void check_fallbacks_point_at_general_roles(void) {
 
 static void check_a_section_key_is_parsed(void) {
     config_theme_t theme;
-    char error[CONFIG_ERROR_CAPACITY] = "";
+    char error[USER_FILES_MESSAGE_CAPACITY] = "";
     EXPECT(parse("{\"coin\": {\"face\": \"#FFFFFF\"}, \"oracle\": {\"answer\": \"#ff0000\"}}",
                  &theme, error),
            "section keys were refused: %s", error);
@@ -134,7 +139,7 @@ static void check_a_section_key_is_parsed(void) {
 }
 
 static void check_general_roles_reach_the_screens(void) {
-    char error[CONFIG_ERROR_CAPACITY] = "";
+    char error[USER_FILES_MESSAGE_CAPACITY] = "";
     theme_apply_file(NULL);
     const uint16_t built_in_modifier = theme_active()->oracle.modifier;
     const uint16_t built_in_ring = theme_active()->list.ring;
@@ -150,7 +155,7 @@ static void check_general_roles_reach_the_screens(void) {
 }
 
 static void check_a_section_key_wins_over_its_role(void) {
-    char error[CONFIG_ERROR_CAPACITY] = "";
+    char error[USER_FILES_MESSAGE_CAPACITY] = "";
     theme_apply_file(NULL);
     EXPECT(apply("{\"colors\": {\"primary\": \"#FFFFFF\"}, \"numbers\": {\"text\": \"#FF0000\"}}",
                  error),
@@ -160,7 +165,7 @@ static void check_a_section_key_wins_over_its_role(void) {
 }
 
 static void check_a_section_key_alone_keeps_the_rest(void) {
-    char error[CONFIG_ERROR_CAPACITY] = "";
+    char error[USER_FILES_MESSAGE_CAPACITY] = "";
     theme_apply_file(NULL);
     const theme_t before = *theme_active();
     EXPECT(apply("{\"numbers\": {\"text\": \"#FF0000\"}}", error), "refused: %s", error);
@@ -174,7 +179,7 @@ static void check_a_section_key_alone_keeps_the_rest(void) {
 
 static void expect_refused(const char *text, const char *expected_error) {
     config_theme_t theme;
-    char error[CONFIG_ERROR_CAPACITY] = "";
+    char error[USER_FILES_MESSAGE_CAPACITY] = "";
     const bool accepted = parse(text, &theme, error);
     EXPECT(!accepted, "accepted: %s", text);
     EXPECT(accepted || strcmp(error, expected_error) == 0, "refused with \"%s\", expected \"%s\"",
@@ -205,7 +210,7 @@ static void check_mistakes_are_named(void) {
 }
 
 static void check_user_files_apply(void) {
-    char error[CONFIG_ERROR_CAPACITY] = "";
+    char error[USER_FILES_MESSAGE_CAPACITY] = "";
     theme_apply_file(NULL);
     const theme_t built_in = *theme_active();
 
@@ -233,7 +238,7 @@ static void check_user_files_apply(void) {
 
     // A refused file changes nothing: the look the last good file gave stays.
     EXPECT(!apply("{\"oracle\": {\"answer\": \"white\"}}", error), "a bad file was applied");
-    EXPECT(strcmp(error, "theme.json: oracle.answer: expected \"#RRGGBB\"") == 0,
+    EXPECT(strncmp(error, "theme.json: oracle.answer: expected \"#RRGGBB\"\r\n", 47) == 0,
            "the error did not name the file and key: %s", error);
     EXPECT(theme_active()->numbers.text == WHITE, "a refused file dropped the look in use");
 

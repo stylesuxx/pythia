@@ -3,35 +3,22 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#include "dice.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-typedef enum {
-    DIE_NUMERIC, // 1 to n sides
-    DIE_COIN,    // 1 or 2, shown as a coin rather than a numeral
-    DIE_D66,     // two d6 read as tens and units, 11 to 66
-    DIE_ORACLE,  // yes or no, sometimes carrying a modifier
-} die_kind_t;
-
-typedef struct {
-    const char *name;
-    die_kind_t kind;
-    uint16_t sides;
-} die_t;
-
-extern const die_t DICE[];
-extern const uint8_t DIE_COUNT;
 
 typedef struct {
     die_kind_t kind;
     char answer[8];
     uint8_t value;        // the number rolled; 0 for the oracle
+    uint8_t effect;       // the die's, an index into EFFECTS
     const char *modifier; // NULL when the answer stands alone
 } roll_t;
 
 void oracle_begin(void);
-uint8_t die_index_of(const char *name);
 roll_t roll_die(const die_t *die);
 
 /**

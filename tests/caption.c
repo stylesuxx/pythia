@@ -8,8 +8,9 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <string.h>
 
-#include "oracle.h"
+#include "dice.h"
 #include "render/canvas.h"
 #include "render/theme.h"
 #include "scenes/caption.h"
@@ -40,26 +41,64 @@ static bool is_disjoint(frame_rect_t a, frame_rect_t b) {
     return rows_apart || columns_apart;
 }
 
-// Every inked pixel of the caption lies inside the rect it reports.
-static void check_every_name_fits_the_rect(const theme_t *theme) {
+static bool name_fits_the_rect(const theme_t *theme, const char *name) {
     const frame_rect_t rect = caption_get_rect();
     const uint16_t *pixels = canvas_pixels();
+    canvas_fill(theme->colors.background);
+    caption_draw(name, 255);
 
-    for (uint8_t index = 0; index < DIE_COUNT; index++) {
-        canvas_fill(theme->colors.background);
-        caption_draw(DICE[index].name, 255);
-
-        for (int row = 0; row < CANVAS_HEIGHT; row++) {
-            for (int column = 0; column < CANVAS_WIDTH; column++) {
-                if (pixels[row * CANVAS_WIDTH + column] != theme->colors.background &&
-                    !is_inside(rect, row, column)) {
-                    EXPECT(false, "%s: %s draws at row %d column %d, outside the caption's rect",
-                           theme->name, DICE[index].name, row, column);
-                    return;
-                }
+    for (int row = 0; row < CANVAS_HEIGHT; row++) {
+        for (int column = 0; column < CANVAS_WIDTH; column++) {
+            if (pixels[row * CANVAS_WIDTH + column] != theme->colors.background &&
+                !is_inside(rect, row, column)) {
+                EXPECT(false, "%s: %s draws at row %d column %d, outside the caption's rect",
+                       theme->name, name, row, column);
+                return false;
             }
         }
     }
+
+    return true;
+}
+
+// Every inked pixel of every built-in name lies inside the rect the caption reports.
+static void check_every_name_fits_the_rect(const theme_t *theme) {
+    for (uint8_t index = 0; index < dice_count(); index++) {
+        if (!name_fits_the_rect(theme, dice_active()[index].name)) {
+            return;
+        }
+    }
+}
+
+/*
+ * caption_fits() is what a layout is held to, so the widest run of a wide
+ * glyph it accepts must draw inside the rect, and one glyph more must be
+ * refused. Every built-in name must pass it.
+ */
+static void check_the_fit_measure_is_honest(const theme_t *theme) {
+    for (uint8_t index = 0; index < dice_count(); index++) {
+        EXPECT(caption_fits(dice_active()[index].name), "%s does not fit its own rim",
+               dice_active()[index].name);
+    }
+
+    char run[DIE_NAME_CAPACITY + 1];
+    int accepted = 0;
+    for (int length = 1; length <= DIE_NAME_CAPACITY; length++) {
+        memset(run, 'D', (size_t)length);
+        run[length] = '\0';
+        if (!caption_fits(run)) {
+            break;
+        }
+
+        accepted = length;
+    }
+
+    EXPECT(accepted >= 4, "the rim accepts only %d wide glyphs; D100 needs four", accepted);
+    EXPECT(accepted < DIE_NAME_CAPACITY, "the measure accepts every length up to the capacity");
+    memset(run, 'D', (size_t)accepted);
+    run[accepted] = '\0';
+    EXPECT(name_fits_the_rect(theme, run), "the widest accepted run, %s, spills out of the rect", run);
+    printf("caption: up to %d wide glyphs fit the rim\n", accepted);
 }
 
 // The caption's rect and every stage are told apart by numbers, not pixels.
@@ -85,6 +124,7 @@ int main(void) {
     }
 
     check_every_name_fits_the_rect(theme_active());
+    check_the_fit_measure_is_honest(theme_active());
     check_the_rect_clears_every_stage();
 
     if (failures > 0) {

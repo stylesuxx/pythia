@@ -22,7 +22,7 @@ extern "C" {
         LIST(THEME_FIELD)                                                                         \
     } section;
 
-typedef struct {
+typedef struct theme {
     const char *name;
     const font_t *answer_font; // YES and NO
     const font_t *number_font; // die results

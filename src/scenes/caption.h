@@ -1,5 +1,6 @@
 #pragma once
 
+#include <stdbool.h>
 #include <stdint.h>
 
 #include "frame.h"
@@ -23,6 +24,13 @@ extern "C" {
 void caption_draw(const char *text, uint8_t alpha);
 
 frame_rect_t caption_get_rect(void);
+
+/**
+ * Whether a name drawn along the rim stays inside the caption's rows, so a
+ * layout can be refused before a name climbs into a stage. Only glyphs the
+ * caption face carries count towards the width.
+ */
+bool caption_fits(const char *text);
 
 #ifdef __cplusplus
 }

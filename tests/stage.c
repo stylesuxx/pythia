@@ -25,6 +25,18 @@
 #include "scenes/reveal.h"
 #include "stage.h"
 
+/*
+ * A roll arrives through its die's effect; here the effect is chosen per
+ * check and laid on a copy of the roll as it goes on stage.
+ */
+static uint8_t chosen_effect = 0;
+
+static void begin_on_stage(const roll_t *roll, uint32_t now) {
+    roll_t copy = *roll;
+    copy.effect = chosen_effect;
+    stage_begin(&copy, now);
+}
+
 #define STEP_MS 1
 #define FRAME_ALPHA 255
 #define MAX_CUES 16
@@ -107,7 +119,7 @@ static bool is_background_only(const theme_t *theme) {
 }
 
 static void render_rest(const theme_t *theme, const roll_t *roll, uint32_t start) {
-    stage_begin(roll, start);
+    begin_on_stage(roll, start);
     canvas_fill(theme->colors.background);
     stage_draw(start + LONG_AFTER_MS, FRAME_ALPHA);
 }
@@ -115,19 +127,19 @@ static void render_rest(const theme_t *theme, const roll_t *roll, uint32_t start
 // The kind of the roll, and the coin setting, decide what is on stage.
 static void check_the_kind_picks_the_stage(void) {
     const roll_t oracle = oracle_outcome(0);
-    stage_configure(true, 0);
+    stage_configure(true);
 
-    stage_begin(&oracle, 0);
+    begin_on_stage(&oracle, 0);
     if (!is_same_rect(stage_get_rect(), reveal_stage())) {
         fail("an oracle roll is not on the reveal's band");
     }
 
-    stage_begin(&NUMERIC_ROLLS[1], 0);
+    begin_on_stage(&NUMERIC_ROLLS[1], 0);
     if (!is_same_rect(stage_get_rect(), numeric_stage())) {
         fail("a numeric roll is not on the numeric band");
     }
 
-    stage_begin(&COIN_ROLL, 0);
+    begin_on_stage(&COIN_ROLL, 0);
     if (!is_same_rect(stage_get_rect(), coin_stage())) {
         fail("D2 with the coin enabled is not on the coin's stage");
     }
@@ -136,8 +148,9 @@ static void check_the_kind_picks_the_stage(void) {
         fail("the coin is not rerolled where it lies");
     }
 
-    stage_configure(false, 0);
-    stage_begin(&COIN_ROLL, 0);
+    chosen_effect = 0;
+    stage_configure(false);
+    begin_on_stage(&COIN_ROLL, 0);
     if (!is_same_rect(stage_get_rect(), numeric_stage())) {
         fail("D2 with the coin disabled is not printed on the numeric band");
     }
@@ -160,8 +173,9 @@ static void check_stage_band(const theme_t *theme, uint8_t effect, const roll_t 
         background_row[column] = theme->colors.background;
     }
 
-    stage_configure(false, effect);
-    stage_begin(roll, start);
+    chosen_effect = effect;
+    stage_configure(false);
+    begin_on_stage(roll, start);
     const frame_rect_t band = stage_get_rect();
 
     for (uint32_t now = start; stage_is_animating(now); now += STEP_MS) {
@@ -191,7 +205,8 @@ static void check_effects_share_a_rest(const theme_t *theme) {
     for (size_t index = 0; index < NUMERIC_ROLL_COUNT; index++) {
         const roll_t *roll = &NUMERIC_ROLLS[index];
 
-        stage_configure(false, 0);
+        chosen_effect = 0;
+    stage_configure(false);
         render_rest(theme, roll, 0);
         if (is_background_only(theme)) {
             fail("%s rests on an empty frame under %s", roll->answer, EFFECTS[0]->name);
@@ -199,7 +214,8 @@ static void check_effects_share_a_rest(const theme_t *theme) {
         memcpy(reference, canvas_pixels(), frame_bytes);
 
         for (uint8_t effect = 1; effect < EFFECT_COUNT; effect++) {
-            stage_configure(false, effect);
+            chosen_effect = effect;
+    stage_configure(false);
             render_rest(theme, roll, 0);
             if (memcmp(reference, canvas_pixels(), frame_bytes) != 0) {
                 fail("%s rests differently under %s than under %s", roll->answer,
@@ -224,13 +240,14 @@ static void check_effect_settles_before_frames_stop(const theme_t *theme, uint8_
     const size_t frame_bytes = (size_t)CANVAS_WIDTH * CANVAS_HEIGHT * sizeof(uint16_t);
     uint16_t *rest = malloc(frame_bytes);
 
-    stage_configure(false, effect);
+    chosen_effect = effect;
+    stage_configure(false);
     render_rest(theme, roll, start);
     memcpy(rest, canvas_pixels(), frame_bytes);
 
     for (uint32_t interval = every_interval ? 1 : DEVICE_FRAME_MS; interval <= DEVICE_FRAME_MS;
          interval++) {
-        stage_begin(roll, start);
+        begin_on_stage(roll, start);
         int moving_frames = 0;
         for (uint32_t now = start; stage_is_animating(now); now += interval) {
             canvas_fill(theme->colors.background);
@@ -258,9 +275,10 @@ static void check_effect_plays_one_cue(uint8_t effect, const roll_t *roll, uint3
     cue_log_t log;
     memset(&log, 0, sizeof(log));
 
-    stage_configure(false, effect);
+    chosen_effect = effect;
+    stage_configure(false);
     recording = &log;
-    stage_begin(roll, start);
+    begin_on_stage(roll, start);
     for (uint32_t now = start; stage_is_animating(now); now += STEP_MS) {
         recording_now = now - start;
         stage_tick(now);
@@ -295,16 +313,18 @@ static void check_effect_plays_one_cue(uint8_t effect, const roll_t *roll, uint3
 static void check_effect_opens_as_named(const theme_t *theme) {
     const roll_t *roll = &NUMERIC_ROLLS[1];
 
-    stage_configure(false, effect_index_of("tear"));
-    stage_begin(roll, 0);
+    chosen_effect = effect_index_of("tear");
+    stage_configure(false);
+    begin_on_stage(roll, 0);
     canvas_fill(theme->colors.background);
     stage_draw(0, FRAME_ALPHA);
     if (is_background_only(theme)) {
         fail("the tear's first frame is empty");
     }
 
-    stage_configure(false, effect_index_of("slide"));
-    stage_begin(roll, 0);
+    chosen_effect = effect_index_of("slide");
+    stage_configure(false);
+    begin_on_stage(roll, 0);
     canvas_fill(theme->colors.background);
     stage_draw(0, FRAME_ALPHA);
     if (!is_background_only(theme)) {
@@ -318,14 +338,16 @@ static void check_an_unknown_effect_falls_back(const theme_t *theme) {
     uint16_t *reference = malloc(frame_bytes);
     const roll_t *roll = &NUMERIC_ROLLS[2];
 
-    stage_configure(false, 0);
-    stage_begin(roll, 0);
+    chosen_effect = 0;
+    stage_configure(false);
+    begin_on_stage(roll, 0);
     canvas_fill(theme->colors.background);
     stage_draw(EFFECTS[0]->duration_ms / 2, FRAME_ALPHA);
     memcpy(reference, canvas_pixels(), frame_bytes);
 
-    stage_configure(false, EFFECT_COUNT);
-    stage_begin(roll, 0);
+    chosen_effect = EFFECT_COUNT;
+    stage_configure(false);
+    begin_on_stage(roll, 0);
     canvas_fill(theme->colors.background);
     stage_draw(EFFECTS[0]->duration_ms / 2, FRAME_ALPHA);
     if (memcmp(reference, canvas_pixels(), frame_bytes) != 0) {

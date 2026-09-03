@@ -35,7 +35,6 @@ typedef struct {
     uint8_t die;       // armed after boot; one past the table arms the oracle
     uint32_t idle_ms;  // input-free time before the screen sleeps; see power.h
     bool coin_enabled; // D2 thrown as a coin rather than printed
-    uint8_t effect_index; // how a numeric result arrives; an index into EFFECTS
 } mode_config_t;
 
 // Starts the boot sequence, armed afterwards on the configured die.

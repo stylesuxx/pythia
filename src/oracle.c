@@ -7,36 +7,6 @@
 #include "esp_cpu.h"
 #include "esp_random.h"
 
-const die_t DICE[] = {
-    {"D2", DIE_COIN, 2},
-    {"D4", DIE_NUMERIC, 4},
-    {"D6", DIE_NUMERIC, 6},
-    {"D8", DIE_NUMERIC, 8},
-    {"D10", DIE_NUMERIC, 10},
-    {"D12", DIE_NUMERIC, 12},
-    {"D20", DIE_NUMERIC, 20},
-    {"D66", DIE_D66, 0},
-    {"D100", DIE_NUMERIC, 100},
-    {"ORACLE", DIE_ORACLE, 0},
-};
-
-const uint8_t DIE_COUNT = (uint8_t)(sizeof(DICE) / sizeof(DICE[0]));
-
-uint8_t die_index_of(const char *name) {
-    uint8_t oracle = 0;
-    for (uint8_t index = 0; index < DIE_COUNT; index++) {
-        if (strcmp(DICE[index].name, name) == 0) {
-            return index;
-        }
-
-        if (DICE[index].kind == DIE_ORACLE) {
-            oracle = index;
-        }
-    }
-
-    return oracle;
-}
-
 /**
  * The six oracle outcomes, ordered as a d6 oracle table reads from worst to
  * best: a "but" softens whichever answer it follows, an "and" strengthens it.
@@ -120,6 +90,7 @@ static uint32_t roll_below(uint32_t sides) {
 roll_t roll_die(const die_t *die) {
     roll_t roll = {
       .kind = die->kind,
+      .effect = die->effect,
       .answer = "",
       .value = 0,
       .modifier = NULL

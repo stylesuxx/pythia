@@ -1,0 +1,15 @@
+{
+  "default_effect": "tear",
+  "dice": [
+    {"name": "D2", "kind": "coin"},
+    {"name": "D4", "kind": "numeric", "sides": 4},
+    {"name": "D6", "kind": "numeric", "sides": 6},
+    {"name": "D8", "kind": "numeric", "sides": 8},
+    {"name": "D10", "kind": "numeric", "sides": 10},
+    {"name": "D12", "kind": "numeric", "sides": 12},
+    {"name": "D20", "kind": "numeric", "sides": 20},
+    {"name": "D66", "kind": "d66"},
+    {"name": "D100", "kind": "numeric", "sides": 100},
+    {"name": "ORACLE", "kind": "oracle"}
+  ]
+}

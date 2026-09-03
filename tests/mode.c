@@ -7,10 +7,14 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "render/canvas.h"
 #include "scenes/coin.h"
+#include "builtin_files.h"
+#include "config.h"
+#include "dice.h"
 #include "scenes/effects/effect.h"
 #include "scenes/numeric.h"
 #include "haptics.h"
@@ -50,9 +54,29 @@ void haptics_play(uint8_t effect) {
     haptic_counts[effect]++;
 }
 
-void settings_set_die_index(uint8_t index) {
+void settings_set_die_name(const char *name) {
     persist_calls++;
-    persisted_die = index;
+    persisted_die = dice_index_of(name);
+}
+
+/*
+ * The slide is pinned for every die, so the roll cue counted below is one
+ * known haptic: the built-in layout, laid in with every effect set to it.
+ */
+static void pin_the_slide(void) {
+    const char *text = layout_builtin_text();
+    config_layout_t layout;
+    char error[CONFIG_ERROR_CAPACITY];
+    if (!config_parse_layout(text, strlen(text), &layout, error, sizeof(error))) {
+        fprintf(stderr, "mode: data/layout.json was refused: %s\n", error);
+        exit(1);
+    }
+
+    for (uint8_t index = 0; index < layout.count; index++) {
+        layout.dice[index].effect = effect_index_of("slide");
+    }
+
+    dice_apply_file(&layout);
 }
 
 // Whether D2 is thrown as a coin, handed to the machine at begin.
@@ -118,11 +142,7 @@ static uint32_t step_until(uint32_t from, uint32_t to, ui_mode_t target) {
 // Runs boot with inputs that must be ignored. Returns the instant boot ended.
 static uint32_t boot_on(uint8_t die) {
     reset_recording();
-    // The slide is pinned so the roll cue counted below is one known haptic.
-    const mode_config_t config = {.die = die,
-                                  .idle_ms = IDLE_SLEEP_MS,
-                                  .coin_enabled = coin_setting,
-                                  .effect_index = effect_index_of("slide")};
+    const mode_config_t config = {.die = die, .idle_ms = IDLE_SLEEP_MS, .coin_enabled = coin_setting};
     mode_begin(0, &config);
     EXPECT(mode_get_current() == MODE_BOOT, "begin does not start in boot");
 
@@ -166,7 +186,7 @@ static void check_turning_browses_the_list(void) {
 
     now += 100;
     step(now, -5, false);
-    EXPECT(mode_get_selected_die() == (uint8_t)((4 + DIE_COUNT - 5) % DIE_COUNT),
+    EXPECT(mode_get_selected_die() == (uint8_t)((4 + dice_count() - 5) % dice_count()),
            "five clicks back from 4 landed on %u", (unsigned)mode_get_selected_die());
     EXPECT(persist_calls == 0, "browsing persisted the die");
 }
@@ -258,8 +278,8 @@ static void check_tap_on_a_result_rolls_again(void) {
  */
 static void check_the_coin_can_be_switched_off(void) {
     uint8_t coin_die = 0;
-    for (uint8_t index = 0; index < DIE_COUNT; index++) {
-        if (DICE[index].kind == DIE_COIN) {
+    for (uint8_t index = 0; index < dice_count(); index++) {
+        if (dice_active()[index].kind == DIE_COIN) {
             coin_die = index;
         }
     }
@@ -309,8 +329,8 @@ static void check_the_coin_can_be_switched_off(void) {
 // reveal: a coin flip must not borrow one from a reveal that is not on stage.
 static void check_a_coin_flip_fires_no_cue(void) {
     uint8_t coin_die = 0;
-    for (uint8_t index = 0; index < DIE_COUNT; index++) {
-        if (DICE[index].kind == DIE_COIN) {
+    for (uint8_t index = 0; index < dice_count(); index++) {
+        if (dice_active()[index].kind == DIE_COIN) {
             coin_die = index;
         }
     }
@@ -489,14 +509,10 @@ static void check_a_touch_held_through_the_wake_rolls_nothing(void) {
 // A stored die the table no longer has arms the oracle, the die of last resort.
 static void check_a_die_past_the_table_arms_the_oracle(void) {
     const mode_config_t config = {
-        .die = (uint8_t)(DIE_COUNT + 3),
-        .idle_ms = IDLE_SLEEP_MS,
-        .coin_enabled = coin_setting,
-        .effect_index = 0
-    };
+        .die = (uint8_t)(dice_count() + 3), .idle_ms = IDLE_SLEEP_MS, .coin_enabled = coin_setting};
     mode_begin(0, &config);
     EXPECT(step_until(0, BOOT_LIMIT_MS, MODE_ARMED) != 0, "boot did not hand over to armed");
-    EXPECT(mode_get_selected_die() == die_index_of("ORACLE"), "a die past the table armed %u",
+    EXPECT(mode_get_selected_die() == dice_index_of("ORACLE"), "a die past the table armed %u",
            (unsigned)mode_get_selected_die());
 }
 
@@ -514,6 +530,7 @@ static void check_a_turn_wakes_and_is_acted_on(void) {
 }
 
 int main(void) {
+    pin_the_slide();
     if (!canvas_begin()) {
         fputs("mode: no framebuffer\n", stderr);
         return 1;

@@ -12,6 +12,7 @@
 #include <string.h>
 #include <wear_levelling.h>
 
+#include "builtin_files.h"
 #include "files.h"
 
 #define PARTITION_LABEL "ffat"
@@ -22,21 +23,6 @@
 
 // The largest file worth reading whole; a typeface is a few hundred KB.
 #define MAX_FILE_BYTES (2u * 1024u * 1024u)
-
-// Rewritten at every boot, so a firmware update never leaves a stale copy.
-static const char README_TEXT[] =
-    "PYTHIA// user files\r\n"
-    "\r\n"
-    "theme.json on this drive is the look in use. Edit it, then eject the drive:\r\n"
-    "the terminal reads it at once and switches over. A file it cannot accept is\r\n"
-    "refused and the previous look stays; STATUS.txt says what was applied and\r\n"
-    "why a file was refused. Delete theme.json and eject to go back to the\r\n"
-    "built-in look; it is written again from that.\r\n"
-    "\r\n"
-    "Every colour takes \"#RRGGBB\" and every key is optional. \"colors\" holds the\r\n"
-    "general roles; each screen has a section of its own (boot, list, caption,\r\n"
-    "numbers, oracle, coin) whose keys win over the roles they follow. A key left\r\n"
-    "out follows its role; a role left out keeps the built-in value.\r\n";
 
 static USBMSC msc;
 static const esp_partition_t *partition = NULL;
@@ -117,6 +103,7 @@ static int32_t on_write(uint32_t sector, uint32_t offset, uint8_t *buffer, uint3
 // An eject from the host is the signal that its files are complete.
 static bool on_start_stop(uint8_t power_condition, bool start, bool load_eject) {
     (void)power_condition;
+
     if (load_eject && !start) {
         changed = true;
     }
@@ -129,6 +116,7 @@ static void on_usb_event(void *argument, esp_event_base_t base, int32_t id, void
     (void)argument;
     (void)base;
     (void)data;
+
     if (id == ARDUINO_USB_STOPPED_EVENT) {
         changed = true;
     }
@@ -187,6 +175,7 @@ static void detach_from_host(void) {
     }
 }
 
+// Line endings become CRLF on the way, so every editor on every host reads it.
 static void write_text(const char *path, const char *text) {
     FILE *file = fopen(path, "w");
     if (file == NULL) {
@@ -194,7 +183,14 @@ static void write_text(const char *path, const char *text) {
         return;
     }
 
-    fputs(text, file);
+    for (const char *cursor = text; *cursor != '\0'; cursor++) {
+        if (*cursor == '\n') {
+            fputc('\r', file);
+        }
+
+        fputc(*cursor, file);
+    }
+
     fclose(file);
 }
 
@@ -214,7 +210,8 @@ bool drive_begin(void) {
         return false;
     }
 
-    write_text(README_PATH, README_TEXT);
+    // Rewritten at every boot, so a firmware update never leaves a stale copy.
+    write_text(README_PATH, readme_builtin_text());
     unmount_filesystem();
 
     if (!attach_to_host()) {

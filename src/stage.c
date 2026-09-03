@@ -16,10 +16,9 @@ typedef struct {
     bool rerolled_in_place;
 } stage_adapter_t;
 
-static uint8_t effect_index = 0;
-
+// The roll carries its die's effect; one past the table is the first.
 static void numeric_begin_with_effect(const roll_t *roll, uint32_t now) {
-    numeric_begin(roll, EFFECTS[effect_index], now);
+    numeric_begin(roll, EFFECTS[roll->effect < EFFECT_COUNT ? roll->effect : 0], now);
 }
 
 static void coin_begin(const roll_t *roll, uint32_t now) {
@@ -64,9 +63,8 @@ static const stage_adapter_t COIN_ADAPTER = {
 static const stage_adapter_t *current = &REVEAL_ADAPTER;
 static bool coin_enabled = true;
 
-void stage_configure(bool enabled, uint8_t index) {
+void stage_configure(bool enabled) {
     coin_enabled = enabled;
-    effect_index = index < EFFECT_COUNT ? index : 0;
 }
 
 void stage_begin(const roll_t *roll, uint32_t now) {

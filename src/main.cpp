@@ -8,8 +8,10 @@
 #include <Arduino.h>
 #include <USB.h>
 #include <Wire.h>
+#include <string.h>
 
 #include "config.h"
+#include "dice.h"
 #include "render/canvas.h"
 #include "hardware/drive.h"
 #include "hardware/encoder.h"
@@ -19,7 +21,6 @@
 #include "mode.h"
 #include "oracle.h"
 #include "hardware/panel.h"
-#include "scenes/effects/effect.h"
 #include "settings.h"
 #include "render/theme.h"
 #include "hardware/touch_cst816.h"
@@ -59,7 +60,7 @@ static void apply_user_files(void) {
         return;
     }
 
-    char message[CONFIG_ERROR_CAPACITY];
+    char message[USER_FILES_MESSAGE_CAPACITY];
     if (!user_files_apply(message, sizeof(message))) {
         Serial.printf("user files: %s\n", message);
     }
@@ -76,8 +77,7 @@ void setup() {
     settings.display_rotated = true;
     settings.haptics_enabled = true;
     settings.coin_enabled = true;
-    settings.effect_index = effect_index_of("tear");
-    settings.die_index = die_index_of("ORACLE");
+    strncpy(settings.die_name, "ORACLE", sizeof(settings.die_name));
     settings_begin(&settings);
 
     if (settings_note_boot_attempt() >= SAFE_MODE_AFTER_ATTEMPTS) {
@@ -122,10 +122,9 @@ void setup() {
     encoder_begin();
     oracle_begin();
 
-    config.die = settings.die_index;
+    config.die = dice_index_of(settings.die_name);
     config.idle_ms = IDLE_SLEEP_MS;
     config.coin_enabled = settings.coin_enabled;
-    config.effect_index = settings.effect_index;
     mode_begin(millis(), &config);
     ready = true;
 }
@@ -157,6 +156,7 @@ void loop() {
     // on it, self-test and all.
     if (drive_take_change()) {
         apply_user_files();
+        config.die = dice_index_of(settings.die_name);
         mode_begin(now, &config);
     }
 

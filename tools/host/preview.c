@@ -14,6 +14,9 @@
 #include "scenes/caption.h"
 #include "scenes/coin.h"
 #include "scenes/effects/effect.h"
+#include "builtin_files.h"
+#include "config.h"
+#include "dice.h"
 #include "esp_random.h"
 #include "mode.h"
 #include "oracle.h"
@@ -127,10 +130,26 @@ void haptics_play(uint8_t effect) {
  */
 static uint8_t preview_effect = 0;
 
+/*
+ * The effect asked for on the command line: the built-in layout, laid in
+ * with every die's effect set to it.
+ */
 static bool select_effect(const char *name) {
     for (uint8_t index = 0; index < EFFECT_COUNT; index++) {
         if (strcmp(EFFECTS[index]->name, name) == 0) {
             preview_effect = index;
+            const char *text = layout_builtin_text();
+            config_layout_t layout;
+            char error[CONFIG_ERROR_CAPACITY];
+            if (!config_parse_layout(text, strlen(text), &layout, error, sizeof(error))) {
+                return false;
+            }
+
+            for (uint8_t die = 0; die < layout.count; die++) {
+                layout.dice[die].effect = index;
+            }
+
+            dice_apply_file(&layout);
             return true;
         }
     }
@@ -167,7 +186,8 @@ static int render_reveal(const char *answer, const char *modifier, const char *c
     roll.kind = (strcmp(answer, "YES") == 0 || strcmp(answer, "NO") == 0) ? DIE_ORACLE
                                                                            : DIE_NUMERIC;
 
-    stage_configure(false, preview_effect);
+    roll.effect = preview_effect;
+    stage_configure(false);
     stage_begin(&roll, 0);
     int frames = 0;
     for (uint32_t now = 0; now <= 1600; now += FRAME_INTERVAL_MS) {
@@ -214,12 +234,7 @@ static int render_boot(gif_writer_t *gif) {
  */
 static int render_menu(gif_writer_t *gif) {
     const mode_input_t nothing = {0, false};
-    const mode_config_t config = {
-        .die = die_index_of("ORACLE"),
-        .idle_ms = 120000,
-        .coin_enabled = true,
-        .effect_index = preview_effect
-    };
+    const mode_config_t config = {.die = dice_index_of("ORACLE"), .idle_ms = 120000, .coin_enabled = true};
     mode_begin(0, &config);
     uint32_t now = 0;
     while (mode_get_current() == MODE_BOOT) {
@@ -228,7 +243,7 @@ static int render_menu(gif_writer_t *gif) {
     }
 
     uint32_t next_click = now + MENU_LEAD_MS;
-    const uint32_t last_click = next_click + (uint32_t)(DIE_COUNT - 1) * MENU_STEP_MS;
+    const uint32_t last_click = next_click + (uint32_t)(dice_count() - 1) * MENU_STEP_MS;
     const uint32_t end = last_click + MENU_SETTLE_MS;
     int frames = 0;
     for (; now <= end; now += FRAME_INTERVAL_MS) {
@@ -258,26 +273,25 @@ static int render_menu(gif_writer_t *gif) {
 static int render_roll(const char *die_name, const char *first, const char *second,
                        gif_writer_t *gif) {
     const mode_input_t nothing = {0, false};
-    uint8_t die = DIE_COUNT;
-    for (uint8_t index = 0; index < DIE_COUNT; index++) {
-        if (strcmp(DICE[index].name, die_name) == 0) {
+    uint8_t die = dice_count();
+    for (uint8_t index = 0; index < dice_count(); index++) {
+        if (strcmp(dice_active()[index].name, die_name) == 0) {
             die = index;
         }
     }
 
-    if (die == DIE_COUNT) {
+    if (die == dice_count()) {
         fprintf(stderr, "preview: no die named %s\n", die_name);
         return -1;
     }
 
-    if (!script_result(&DICE[die], strtoul(first, NULL, 10)) ||
-        !script_result(&DICE[die], strtoul(second, NULL, 10))) {
+    if (!script_result(&dice_active()[die], strtoul(first, NULL, 10)) ||
+        !script_result(&dice_active()[die], strtoul(second, NULL, 10))) {
         fprintf(stderr, "preview: %s cannot roll %s then %s\n", die_name, first, second);
         return -1;
     }
 
-    const mode_config_t config = {
-        .die = die, .idle_ms = 120000, .coin_enabled = true, .effect_index = preview_effect};
+    const mode_config_t config = {.die = die, .idle_ms = 120000, .coin_enabled = true};
     mode_begin(0, &config);
     uint32_t now = 0;
     while (mode_get_current() == MODE_BOOT) {

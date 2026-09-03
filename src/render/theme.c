@@ -6,7 +6,7 @@
 
 #include "config.h"
 #include "render/generated/fonts.h"
-#include "theme_file.h"
+#include "builtin_files.h"
 
 // The built-in typefaces; the palette comes from data/theme.json.
 static const theme_t BUILT_IN_FACES = {

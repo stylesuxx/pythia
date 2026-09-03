@@ -19,8 +19,8 @@ extern "C" {
  * its rows. It is the one place a roll's kind becomes a drawing.
  */
 
-// The effect index names a row of EFFECTS; one past the table is the first.
-void stage_configure(bool coin_enabled, uint8_t effect_index);
+// Whether D2 is thrown as a coin; off, it prints a number like any other die.
+void stage_configure(bool coin_enabled);
 void stage_begin(const roll_t *roll, uint32_t now);
 void stage_draw(uint32_t now, uint8_t alpha);
 frame_rect_t stage_get_rect(void);

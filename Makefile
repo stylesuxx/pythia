@@ -41,11 +41,12 @@ FONT_GENERATOR := $(BUILD)/make_fonts
 # test program with its own main; its exit status is its verdict.
 SHARED_SOURCES := $(wildcard src/*.c) $(wildcard src/scenes/*.c) $(wildcard src/scenes/effects/*.c) \
                   $(wildcard src/render/*.c) $(wildcard src/render/generated/*.c) tools/host/adapters.c
-# data/theme.json is the built-in palette, embedded verbatim on the device by
-# platformio.ini and here through a source generated from the same file.
-THEME_JSON := data/theme.json
-THEME_TEXT := $(BUILD)/generated/theme_text.c
-SHARED_OBJECTS := $(SHARED_SOURCES:%.c=$(BUILD)/%.o) $(THEME_TEXT:.c=.o)
+# The files under data/ are the built-in palette, die table and the drive's
+# README, embedded verbatim on the device by platformio.ini and here through a
+# source generated from the same files.
+BUILTIN_FILES := data/theme.json data/layout.json data/README.txt
+BUILTIN_TEXT := $(BUILD)/generated/builtin_files.c
+SHARED_OBJECTS := $(SHARED_SOURCES:%.c=$(BUILD)/%.o) $(BUILTIN_TEXT:.c=.o)
 PREVIEW_SOURCES := tools/host/preview.c tools/host/gif.c
 PREVIEW_OBJECTS := $(PREVIEW_SOURCES:%.c=$(BUILD)/%.o) $(SHARED_OBJECTS)
 TEST_SOURCES := $(wildcard tests/*.c)
@@ -145,13 +146,22 @@ $(BUILD)/%.o: %.c
 	@mkdir -p $(@D)
 	$(CC) $(CFLAGS) $(CPPFLAGS) -MMD -MP -c $< -o $@
 
-$(THEME_TEXT): $(THEME_JSON)
-	@mkdir -p $(@D)
-	{ printf '#include "theme_file.h"\n\n// $(THEME_JSON), verbatim.\nstatic const char TEXT[] =\n'; \
-	  sed -e 's/\\/\\\\/g' -e 's/"/\\"/g' -e 's/^/    "/' -e 's/$$/\\n"/' $<; \
-	  printf ';\n\nconst char *theme_builtin_text(void) {\n    return TEXT;\n}\n'; } > $@
+# Each file becomes a string literal, one line per source line.
+define EMBED_TEXT
+	printf '\n// %s, verbatim.\nstatic const char %s[] =\n' $(1) $(2); \
+	sed -e 's/\\/\\\\/g' -e 's/"/\\"/g' -e 's/^/    "/' -e 's/$$/\\n"/' $(1); \
+	printf ';\n'
+endef
 
-$(THEME_TEXT:.c=.o): $(THEME_TEXT)
+$(BUILTIN_TEXT): $(BUILTIN_FILES)
+	@mkdir -p $(@D)
+	{ printf '#include "builtin_files.h"\n'; \
+	  $(call EMBED_TEXT,data/theme.json,THEME_TEXT); \
+	  $(call EMBED_TEXT,data/layout.json,LAYOUT_TEXT); \
+	  $(call EMBED_TEXT,data/README.txt,README_TEXT); \
+	  printf '\nconst char *theme_builtin_text(void) {\n    return THEME_TEXT;\n}\n\nconst char *layout_builtin_text(void) {\n    return LAYOUT_TEXT;\n}\n\nconst char *readme_builtin_text(void) {\n    return README_TEXT;\n}\n'; } > $@
+
+$(BUILTIN_TEXT:.c=.o): $(BUILTIN_TEXT)
 	$(CC) $(CFLAGS) $(CPPFLAGS) -c $< -o $@
 
 reveal: $(PREVIEW)

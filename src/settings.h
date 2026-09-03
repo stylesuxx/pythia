@@ -3,6 +3,8 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#include "dice.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -18,20 +20,18 @@ typedef struct {
     bool display_rotated;
     bool haptics_enabled;
     bool coin_enabled;
-    uint8_t effect_index; // an index into EFFECTS
-    uint8_t die_index;    // an index into DICE
+    char die_name[DIE_NAME_CAPACITY]; // resolved against the layout in use at boot
 } settings_t;
 
 /**
  * Opens the store and lays every value it holds over settings, so the caller
- * fills in the defaults first and a value the store lacks keeps them. Stored
- * indexes are handed over as they are; the module that indexes a table with
- * one decides what a value past the table means.
+ * fills in the defaults first and a value the store lacks keeps them. The die
+ * is a name, so a layout that reorders the table still comes back to it.
  */
 void settings_begin(settings_t *settings);
 
-// Written when a choice settles; a write of the value already stored is skipped.
-void settings_set_die_index(uint8_t index);
+// Written when a choice settles; a write of the name already stored is skipped.
+void settings_set_die_name(const char *name);
 
 /**
  * Counts boots that never reached the loop. Noted at the top of setup and

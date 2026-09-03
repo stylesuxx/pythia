@@ -11,6 +11,7 @@
 #include "scenes/boot.h"
 #include "render/font.h"
 #include "render/generated/fonts.h"
+#include "dice.h"
 #include "oracle.h"
 #include "render/theme.h"
 
@@ -36,8 +37,8 @@ static void check_theme(const theme_t *theme) {
     char face[48];
 
     snprintf(face, sizeof(face), "%s label face", theme->name);
-    for (uint8_t index = 0; index < DIE_COUNT; index++) {
-        expect_glyphs(theme->label_font, face, DICE[index].name);
+    for (uint8_t index = 0; index < dice_count(); index++) {
+        expect_glyphs(theme->label_font, face, dice_active()[index].name);
     }
     for (uint8_t index = 0; index < ORACLE_OUTCOME_COUNT; index++) {
         const roll_t outcome = oracle_outcome(index);
@@ -47,8 +48,8 @@ static void check_theme(const theme_t *theme) {
     }
 
     snprintf(face, sizeof(face), "%s caption face", theme->name);
-    for (uint8_t index = 0; index < DIE_COUNT; index++) {
-        expect_glyphs(theme->caption_font, face, DICE[index].name);
+    for (uint8_t index = 0; index < dice_count(); index++) {
+        expect_glyphs(theme->caption_font, face, dice_active()[index].name);
     }
 
     snprintf(face, sizeof(face), "%s answer face", theme->name);

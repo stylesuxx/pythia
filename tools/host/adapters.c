@@ -28,8 +28,8 @@ __attribute__((weak)) void haptics_play(uint8_t effect) {
     (void)effect;
 }
 
-__attribute__((weak)) void settings_set_die_index(uint8_t index) {
-    (void)index;
+__attribute__((weak)) void settings_set_die_name(const char *name) {
+    (void)name;
 }
 
 // The host has no drive; a program with files to serve defines its own.

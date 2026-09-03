@@ -4,6 +4,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include "dice.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -108,6 +110,29 @@ typedef struct {
  */
 bool config_parse_theme(const char *text, size_t length, config_theme_t *theme, char *error,
                         size_t error_capacity);
+
+// One entry of layout.json, checked and resolved: the effect is an index into EFFECTS.
+typedef struct {
+    char name[DIE_NAME_CAPACITY];
+    die_kind_t kind;
+    uint16_t sides;
+    uint8_t effect;
+} config_die_t;
+
+typedef struct config_layout {
+    config_die_t dice[DICE_CAPACITY];
+    uint8_t count;
+} config_layout_t;
+
+/**
+ * Parses layout.json: a "dice" array of one to DICE_CAPACITY entries, each
+ * with a name, a kind (numeric, coin, d66, oracle), sides for a numeric die
+ * and optionally an effect, plus a top-level "default_effect" the entries
+ * without one take. On refusal returns false with error filled, as
+ * "dice[3].sides: reason".
+ */
+bool config_parse_layout(const char *text, size_t length, config_layout_t *layout, char *error,
+                         size_t error_capacity);
 
 #ifdef __cplusplus
 }
