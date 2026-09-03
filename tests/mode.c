@@ -64,9 +64,16 @@ static void reset_recording(void) {
 
 static const mode_input_t NOTHING = {0, false};
 
-static frame_rect_t step(uint32_t now, int32_t detents, bool tap) {
-    const mode_input_t input = {detents, tap};
+static frame_rect_t step(uint32_t now, int32_t detents, bool touched) {
+    const mode_input_t input = {detents, touched};
     return mode_step(now, input);
+}
+
+// One tap: a press at now, released one step later. Returns the press's rows.
+static frame_rect_t tap(uint32_t now) {
+    const frame_rect_t rows = step(now, 0, true);
+    step(now + STEP_MS, 0, false);
+    return rows;
 }
 
 static bool is_whole(frame_rect_t rows) {
@@ -194,7 +201,7 @@ static void check_tap_on_the_list_rolls_at_once(void) {
     reset_recording();
     step(turned, 2, false);
 
-    step(turned + 100, 0, true);
+    tap(turned + 100);
     const uint32_t rolled = step_until(turned + 100, turned + 600, MODE_RESULT);
     EXPECT(rolled > 0, "a tap on the list did not roll");
     EXPECT(rolled < turned + 1000, "the tap waited for the stillness second");
@@ -213,7 +220,7 @@ static void check_tap_when_armed_rolls(void) {
     const uint32_t now = boot_on(5) + 500;
     reset_recording();
 
-    const frame_rect_t rows = step(now, 0, true);
+    const frame_rect_t rows = tap(now);
     EXPECT(mode_get_current() == MODE_RESULT, "a tap when armed did not roll");
     EXPECT(is_whole(rows), "the roll presented %d+%d", rows.top, rows.height);
     EXPECT(persist_calls == 0, "rolling persisted the die");
@@ -222,7 +229,7 @@ static void check_tap_when_armed_rolls(void) {
 static void check_tap_on_a_result_rolls_again(void) {
     uint32_t now = boot_on(5) + 500;
     reset_recording();
-    step(now, 0, true);
+    tap(now);
 
     // Let the first reveal play out entirely before the second tap.
     for (uint32_t later = now + STEP_MS; later <= now + 2000; later += STEP_MS) {
@@ -232,7 +239,7 @@ static void check_tap_on_a_result_rolls_again(void) {
     EXPECT(haptic_counts[HAPTIC_ANSWER] == 1, "the first roll played %d answer haptics",
            haptic_counts[HAPTIC_ANSWER]);
 
-    step(now, 0, true);
+    tap(now);
     EXPECT(mode_get_current() == MODE_RESULT, "a tap on a result left the result screen");
     for (uint32_t later = now; later <= now + 2000; later += STEP_MS) {
         mode_step(later, NOTHING);
@@ -264,7 +271,7 @@ static void check_the_coin_can_be_switched_off(void) {
         const char *state = enabled ? "on" : "off";
 
         const uint32_t now = boot_on(coin_die) + 500;
-        step(now, 0, true);
+        tap(now);
         EXPECT(mode_get_current() == MODE_RESULT, "a tap on the coin die did not roll");
 
         const frame_rect_t wanted = enabled ? thrown : printed;
@@ -309,7 +316,7 @@ static void check_a_coin_flip_fires_no_cue(void) {
     coin_setting = true;
     const uint32_t now = boot_on(coin_die) + 500;
     reset_recording();
-    step(now, 0, true);
+    tap(now);
     EXPECT(mode_get_current() == MODE_RESULT, "a tap on the coin die did not roll");
 
     for (uint32_t later = now + STEP_MS; later <= now + 2000; later += STEP_MS) {
@@ -324,7 +331,7 @@ static void check_a_coin_flip_fires_no_cue(void) {
 
 static void check_turning_leaves_a_result(void) {
     const uint32_t now = boot_on(5) + 500;
-    step(now, 0, true);
+    tap(now);
     step(now + 300, 1, false);
 
     EXPECT(mode_get_current() == MODE_CHOOSING, "a click during a result did not open the list");
@@ -345,7 +352,7 @@ static void check_frames_are_paced(void) {
 
     EXPECT(idle_presents == 0, "the armed screen presented %d frames while idle", idle_presents);
 
-    step(now + 500, 0, true);
+    tap(now + 500);
     int stage = 0;
     int other = 0;
     for (uint32_t later = now + 500 + STEP_MS; later <= now + 500 + 320; later += STEP_MS) {
@@ -402,15 +409,79 @@ static void check_a_touch_wakes_without_rolling(void) {
     const uint32_t dark = sleep_from(armed);
     reset_recording();
 
-    step(dark + 100, 0, true);
+    tap(dark + 100);
     EXPECT(!power_is_asleep(), "a touch did not wake the screen");
     EXPECT(mode_get_current() == MODE_ARMED, "the waking touch left mode %d, expected armed",
            (int)mode_get_current());
     EXPECT(haptic_counts[HAPTIC_ANSWER] == 0, "the waking touch rolled");
 
     // It only woke: the next touch is the one that rolls.
-    step(dark + 400, 0, true);
+    tap(dark + 400);
     EXPECT(mode_get_current() == MODE_RESULT, "the touch after waking did not roll");
+}
+
+// A touch counts once per press, however long the finger stays down.
+static void check_a_held_touch_rolls_once(void) {
+    const uint32_t armed = boot_on(3);
+    reset_recording();
+
+    for (uint32_t now = armed + 100; now <= armed + 1100; now += STEP_MS) {
+        step(now, 0, true);
+    }
+    for (uint32_t now = armed + 1102; now <= armed + 3000; now += STEP_MS) {
+        step(now, 0, false);
+    }
+
+    EXPECT(haptic_counts[HAPTIC_ANSWER] == 1, "a touch held for a second rolled %d times",
+           haptic_counts[HAPTIC_ANSWER]);
+}
+
+// Two touches inside the debounce are one, so a bouncing contact cannot roll twice.
+static void check_touches_inside_the_debounce_are_one(void) {
+    const uint32_t armed = boot_on(3);
+    reset_recording();
+
+    /*
+     * The first roll's cue lands about a third of a second in. A second tap
+     * that got through would fade the result out and roll again, and that
+     * cue would come much later, so a cue by 600 ms means the second touch
+     * was ignored.
+     */
+    tap(armed + 100);
+    tap(armed + 200);
+    for (uint32_t now = armed + 202; now <= armed + 600; now += STEP_MS) {
+        step(now, 0, false);
+    }
+    EXPECT(haptic_counts[HAPTIC_ANSWER] == 1, "two touches 100 ms apart played %d cues by 600 ms",
+           haptic_counts[HAPTIC_ANSWER]);
+    for (uint32_t now = armed + 602; now <= armed + 3000; now += STEP_MS) {
+        step(now, 0, false);
+    }
+
+    // Past the debounce a second touch is its own tap: the result fades and rolls again.
+    tap(armed + 3000);
+    for (uint32_t now = armed + 3002; now <= armed + 4000; now += STEP_MS) {
+        step(now, 0, false);
+    }
+    EXPECT(haptic_counts[HAPTIC_ANSWER] == 2, "a touch 2.9 s later rolled %d times in all",
+           haptic_counts[HAPTIC_ANSWER]);
+}
+
+// A finger that lands on a dark screen and stays there wakes it once and never rolls.
+static void check_a_touch_held_through_the_wake_rolls_nothing(void) {
+    const uint32_t armed = boot_on(3);
+    const uint32_t dark = sleep_from(armed);
+    reset_recording();
+
+    for (uint32_t now = dark + 100; now <= dark + 1100; now += STEP_MS) {
+        step(now, 0, true);
+    }
+    step(dark + 1102, 0, false);
+
+    EXPECT(power_is_awake(), "a held touch did not wake the screen fully");
+    EXPECT(mode_get_current() == MODE_ARMED, "a held touch left mode %d, expected armed",
+           (int)mode_get_current());
+    EXPECT(haptic_counts[HAPTIC_ANSWER] == 0, "a touch held through the wake rolled");
 }
 
 static void check_a_turn_wakes_and_is_acted_on(void) {
@@ -444,6 +515,9 @@ int main(void) {
     check_frames_are_paced();
     check_idle_dims_then_sleeps();
     check_a_touch_wakes_without_rolling();
+    check_a_held_touch_rolls_once();
+    check_touches_inside_the_debounce_are_one();
+    check_a_touch_held_through_the_wake_rolls_nothing();
     check_a_turn_wakes_and_is_acted_on();
 
     if (failures > 0) {

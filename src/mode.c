@@ -19,6 +19,9 @@
 #define CHOICE_FADE_MS 180
 #define STAGE_FADE_MS 200
 
+// Presses closer together than this are one touch: contacts bounce.
+#define TOUCH_DEBOUNCE_MS 250
+
 typedef enum {
     PENDING_NONE,
     PENDING_ARM,
@@ -30,6 +33,10 @@ static pending_t pending = PENDING_NONE;
 static uint8_t selected = 0;
 
 static uint32_t last_rotation_ms = 0;
+
+// The touch level at the previous step and the instant of the last tap.
+static bool was_touched = false;
+static uint32_t last_tap_ms = 0;
 
 /**
  * One alpha moving between two values. Restarting it from its current value
@@ -241,6 +248,8 @@ void mode_begin(uint32_t now, const mode_config_t *config) {
     mode = MODE_BOOT;
     pending = PENDING_NONE;
     last_rotation_ms = now;
+    was_touched = false;
+    last_tap_ms = now - TOUCH_DEBOUNCE_MS;
     power_begin(now, config->idle_ms);
 
     frame_begin(now);
@@ -255,9 +264,20 @@ frame_rect_t mode_step(uint32_t now, mode_input_t input) {
      * during boot does not land on a different die afterwards.
      */
     if (mode == MODE_BOOT) {
+        was_touched = input.touched;
         handle_boot(now);
         power_step(now, false);
         return render(now);
+    }
+
+    /*
+     * A tap is the instant a contact begins, once per press however long the
+     * finger stays, and never within the debounce of the previous tap.
+     */
+    bool tap = input.touched && !was_touched && (now - last_tap_ms) > TOUCH_DEBOUNCE_MS;
+    was_touched = input.touched;
+    if (tap) {
+        last_tap_ms = now;
     }
 
     /*
@@ -268,7 +288,7 @@ frame_rect_t mode_step(uint32_t now, mode_input_t input) {
      */
     power_step(now, mode == MODE_ARMED || mode == MODE_RESULT);
 
-    if (input.detents != 0 || input.tap) {
+    if (input.detents != 0 || tap) {
         /*
          * A touch that wakes the screen is spent on waking: letting it through
          * would consult the die the instant the light comes up, and there
@@ -277,7 +297,7 @@ frame_rect_t mode_step(uint32_t now, mode_input_t input) {
          * as a fault, and a turn already means "go to the die list".
          */
         if (!power_is_awake()) {
-            input.tap = false;
+            tap = false;
         }
 
         power_notice_input(now);
@@ -287,7 +307,7 @@ frame_rect_t mode_step(uint32_t now, mode_input_t input) {
         handle_rotation(now, input.detents);
     }
 
-    if (input.tap) {
+    if (tap) {
         handle_tap(now);
     }
 

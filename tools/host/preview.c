@@ -292,7 +292,7 @@ static int render_roll(const char *die_name, const char *first, const char *seco
     for (; now <= end; now += FRAME_INTERVAL_MS) {
         mode_input_t input = nothing;
         if ((taps == 0 && now >= first_tap) || (taps == 1 && now >= second_tap)) {
-            input.tap = true;
+            input.touched = true;
             taps++;
         }
 

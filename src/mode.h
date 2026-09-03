@@ -28,7 +28,7 @@ typedef enum {
 // What happened since the last step.
 typedef struct {
     int32_t detents; // clicks turned, positive clockwise
-    bool tap;        // a touch began
+    bool touched;    // the touch controller reports a contact
 } mode_input_t;
 
 typedef struct {

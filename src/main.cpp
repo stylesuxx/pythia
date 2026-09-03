@@ -20,8 +20,6 @@
 #include "render/theme.h"
 #include "hardware/touch_cst816.h"
 
-#define TOUCH_DEBOUNCE_MS 250
-
 /**
  * Idle time before the screen goes dark. Overridable from the build flags, so
  * a build that sleeps quickly is a flag rather than an edit:
@@ -32,20 +30,6 @@
 #endif
 
 static bool ready = false;
-static uint32_t last_touch_ms = 0;
-static bool was_touched = false;
-
-static bool touch_began(uint32_t now) {
-    const bool pressed = touch_read().pressed;
-    const bool began = pressed && !was_touched && (now - last_touch_ms) > TOUCH_DEBOUNCE_MS;
-
-    was_touched = pressed;
-    if (began) {
-        last_touch_ms = now;
-    }
-
-    return began;
-}
 
 void setup() {
     Serial.begin(115200);
@@ -93,7 +77,7 @@ void loop() {
     }
 
     const uint32_t now = millis();
-    const mode_input_t input = {encoder_take_detents(), touch_began(now)};
+    const mode_input_t input = {encoder_take_detents(), touch_read().pressed};
 
     const frame_rect_t rows = mode_step(now, input);
     if (rows.height > 0) {
