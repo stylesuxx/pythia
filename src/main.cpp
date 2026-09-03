@@ -101,7 +101,7 @@ void setup() {
      * The panel keeps its RAM through a reset, so the first frame goes up
      * before the backlight does.
      */
-    canvas_fill(theme_active()->background);
+    canvas_fill(theme_active()->colors.background);
     panel_present(canvas_pixels());
     panel_set_backlight(255);
 

@@ -74,8 +74,11 @@ static bool apply(const char *text, char *error) {
 #define WHITE CANVAS_RGB(0xFF, 0xFF, 0xFF)
 #define RED CANVAS_RGB(0xFF, 0x00, 0x00)
 
-// The built-in file is the one source of the palette, so it must name every
-// colour of every section and parse in full; a device never falls back from it.
+/*
+ * The built-in file is the one source of the palette, so it must name every
+ * colour of every section and parse in full, and every one of them must land
+ * in the field its row names; a device never falls back from it.
+ */
 static void check_built_in_file_is_complete(void) {
     config_theme_t parsed;
     char error[CONFIG_ERROR_CAPACITY] = "";
@@ -88,14 +91,11 @@ static void check_built_in_file_is_complete(void) {
 
     theme_select(0);
     const theme_t *theme = theme_active();
-    EXPECT(theme->background == parsed.color[CONFIG_BACKGROUND], "background is not the file's");
-    EXPECT(theme->boot.wordmark == parsed.color[CONFIG_BOOT_WORDMARK], "boot.wordmark is not the file's");
-    EXPECT(theme->list.ring == parsed.color[CONFIG_LIST_RING], "list.ring is not the file's");
-    EXPECT(theme->caption.text == parsed.color[CONFIG_CAPTION_TEXT], "caption.text is not the file's");
-    EXPECT(theme->numbers.text == parsed.color[CONFIG_NUMBERS_TEXT], "numbers.text is not the file's");
-    EXPECT(theme->oracle.modifier == parsed.color[CONFIG_ORACLE_MODIFIER],
-           "oracle.modifier is not the file's");
-    EXPECT(theme->coin.face == parsed.color[CONFIG_COIN_FACE], "coin.face is not the file's");
+#define EXPECT_LANDED(section, stem, key, fallback)                                               \
+    EXPECT(theme->section.key == parsed.color[CONFIG_##stem],                                     \
+           #section "." #key " is not the file's");
+#define EXPECT_SECTION_LANDED(section, LIST) LIST(EXPECT_LANDED)
+    CONFIG_SECTIONS(EXPECT_SECTION_LANDED)
     EXPECT(strcmp(theme->name, parsed.name) == 0, "the selected theme is named %s", theme->name);
 }
 
@@ -161,7 +161,7 @@ static void check_a_section_key_alone_keeps_the_rest(void) {
     EXPECT(theme->numbers.text == RED, "numbers.text was not applied");
     EXPECT(theme->oracle.answer == before.oracle.answer, "oracle.answer changed");
     EXPECT(theme->coin.face == before.coin.face, "coin.face changed");
-    EXPECT(theme->background == before.background, "background changed");
+    EXPECT(theme->colors.background == before.colors.background, "background changed");
     EXPECT(strcmp(theme->name, before.name) == 0, "the name changed to %s", theme->name);
 }
 
@@ -201,7 +201,7 @@ static void check_user_files_apply(void) {
     char error[CONFIG_ERROR_CAPACITY] = "";
     theme_select(0);
     const theme_t *built_in = theme_active();
-    const uint16_t built_in_background = built_in->background;
+    const uint16_t built_in_background = built_in->colors.background;
 
     written_name[0] = '\0';
     EXPECT(apply(NULL, error), "no file was treated as an error: %s", error);
@@ -213,12 +213,12 @@ static void check_user_files_apply(void) {
 
     EXPECT(apply("{\"name\": \"parchment\", \"colors\": {\"background\": \"#F2E6C9\"}}", error),
            "refused: %s", error);
-    EXPECT(theme_active()->background == CANVAS_RGB(0xF2, 0xE6, 0xC9), "the palette was not applied");
+    EXPECT(theme_active()->colors.background == CANVAS_RGB(0xF2, 0xE6, 0xC9), "the palette was not applied");
     EXPECT(theme_active()->answer_font == THEMES[0].answer_font, "the fonts did not carry over");
     EXPECT(strcmp(theme_active()->name, "parchment") == 0, "the file's name was not taken");
 
     EXPECT(apply("{\"numbers\": {\"text\": \"#FFFFFF\"}}", error), "refused: %s", error);
-    EXPECT(theme_active()->background == built_in_background,
+    EXPECT(theme_active()->colors.background == built_in_background,
            "a colour the new file omits kept the previous file's value");
 
     EXPECT(!apply("{\"oracle\": {\"answer\": \"white\"}}", error), "a bad file was applied");

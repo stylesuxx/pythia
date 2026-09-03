@@ -17,6 +17,12 @@ extern "C" {
  *
  * NOTE: a new look is one entry here plus its rows in tools/make_fonts.c.
  */
+#define THEME_FIELD(section, stem, key, fallback) uint16_t key;
+#define THEME_SECTION(section, LIST)                                                              \
+    struct {                                                                                      \
+        LIST(THEME_FIELD)                                                                         \
+    } section;
+
 typedef struct {
     const char *name;
     const font_t *answer_font; // YES and NO
@@ -25,39 +31,13 @@ typedef struct {
     const font_t *caption_font;
     uint32_t coin_faces[2];    // struck on face one and face two of the D2
                                // coin, drawn from number_font
-    uint16_t background;
 
-    // One palette per screen, each key a colour of data/theme.json.
-    struct {
-        uint16_t wordmark; // PYTHIA//, and the scanline that drifts over it
-        uint16_t scramble; // the glyphs a position cycles through
-        uint16_t caption;  // DELPHI SYSTEMS
-        uint16_t ring;
-        uint16_t ring_active; // the comet, and the rule under the wordmark
-    } boot;
-
-    struct {
-        uint16_t name;
-        uint16_t ring;
-        uint16_t ring_active;
-    } list;
-
-    struct {
-        uint16_t text; // the die name along the rim
-    } caption;
-
-    struct {
-        uint16_t text; // every numeric result, whichever effect brings it
-    } numbers;
-
-    struct {
-        uint16_t answer;
-        uint16_t modifier;
-    } oracle;
-
-    struct {
-        uint16_t face; // the rim, grooves and highlight are shades of it
-    } coin;
+    /*
+     * One palette per section of data/theme.json, each key a field: the
+     * general roles under colors, then one struct per screen, so a scene
+     * reads only its own section.
+     */
+    CONFIG_SECTIONS(THEME_SECTION)
 } theme_t;
 
 extern const theme_t THEMES[];

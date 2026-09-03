@@ -13,26 +13,12 @@
 #define TOKEN_CAPACITY 128
 #define KEY_PATH_CAPACITY 64
 
+#define CONFIG_SPEC_ENTRY(section, stem, key, fallback) \
+    [CONFIG_##stem] = {#section, #key, CONFIG_##fallback},
+#define CONFIG_SPEC_SECTION(section, LIST) LIST(CONFIG_SPEC_ENTRY)
+
 const config_color_spec_t CONFIG_COLORS[CONFIG_COLOR_COUNT] = {
-    [CONFIG_BACKGROUND] = {"colors", "background", CONFIG_BACKGROUND},
-    [CONFIG_PRIMARY] = {"colors", "primary", CONFIG_PRIMARY},
-    [CONFIG_SECONDARY] = {"colors", "secondary", CONFIG_SECONDARY},
-    [CONFIG_MUTED] = {"colors", "muted", CONFIG_MUTED},
-    [CONFIG_RING] = {"colors", "ring", CONFIG_RING},
-    [CONFIG_RING_ACTIVE] = {"colors", "ring_active", CONFIG_RING_ACTIVE},
-    [CONFIG_BOOT_WORDMARK] = {"boot", "wordmark", CONFIG_PRIMARY},
-    [CONFIG_BOOT_SCRAMBLE] = {"boot", "scramble", CONFIG_MUTED},
-    [CONFIG_BOOT_CAPTION] = {"boot", "caption", CONFIG_MUTED},
-    [CONFIG_BOOT_RING] = {"boot", "ring", CONFIG_RING},
-    [CONFIG_BOOT_RING_ACTIVE] = {"boot", "ring_active", CONFIG_RING_ACTIVE},
-    [CONFIG_LIST_NAME] = {"list", "name", CONFIG_MUTED},
-    [CONFIG_LIST_RING] = {"list", "ring", CONFIG_RING},
-    [CONFIG_LIST_RING_ACTIVE] = {"list", "ring_active", CONFIG_RING_ACTIVE},
-    [CONFIG_CAPTION_TEXT] = {"caption", "text", CONFIG_MUTED},
-    [CONFIG_NUMBERS_TEXT] = {"numbers", "text", CONFIG_PRIMARY},
-    [CONFIG_ORACLE_ANSWER] = {"oracle", "answer", CONFIG_PRIMARY},
-    [CONFIG_ORACLE_MODIFIER] = {"oracle", "modifier", CONFIG_SECONDARY},
-    [CONFIG_COIN_FACE] = {"coin", "face", CONFIG_PRIMARY},
+    CONFIG_SECTIONS(CONFIG_SPEC_SECTION)
 };
 
 typedef struct {

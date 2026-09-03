@@ -171,7 +171,7 @@ static int render_reveal(const char *answer, const char *modifier, const char *c
     reveal_begin(&roll, 0);
     int frames = 0;
     for (uint32_t now = 0; now <= 1600; now += FRAME_INTERVAL_MS) {
-        canvas_fill(theme_active()->background);
+        canvas_fill(theme_active()->colors.background);
         reveal_draw(now, 255);
         caption_draw(caption, 255);
         if (!encode_frame(gif)) {
@@ -194,7 +194,7 @@ static int render_boot(gif_writer_t *gif) {
     int frames = 0;
     for (uint32_t now = 0; boot_is_running(now); now += FRAME_INTERVAL_MS) {
         boot_tick(now);
-        canvas_fill(theme_active()->background);
+        canvas_fill(theme_active()->colors.background);
         boot_draw(now);
         if (!encode_frame(gif)) {
             return -1;
@@ -317,7 +317,7 @@ static int render_coin(gif_writer_t *gif) {
     // A flip long enough ago to have settled is how a resting coin is posed.
     coin_flip(1, 0);
     for (uint32_t now = 900; now < 900 + rest_ms; now += FRAME_INTERVAL_MS) {
-        canvas_fill(theme_active()->background);
+        canvas_fill(theme_active()->colors.background);
         coin_draw(now, 255);
         caption_draw("D2", 255);
         if (!encode_frame(gif)) {
@@ -329,7 +329,7 @@ static int render_coin(gif_writer_t *gif) {
 
     coin_flip(2, 900 + rest_ms);
     for (uint32_t now = 900 + rest_ms; now < 900 + rest_ms + throw_ms; now += FRAME_INTERVAL_MS) {
-        canvas_fill(theme_active()->background);
+        canvas_fill(theme_active()->colors.background);
         coin_draw(now, 255);
         caption_draw("D2", 255);
 

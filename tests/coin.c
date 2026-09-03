@@ -109,7 +109,7 @@ static void check_a_flip_continues_from_where_it_was(void) {
  * turned past square on.
  */
 static void check_the_outline_curves(void) {
-    const uint16_t background = theme_active()->background;
+    const uint16_t background = theme_active()->colors.background;
 
     for (int step = 0; step < 8; step++) {
         // Spread the samples over a turn, avoiding exactly edge on.
@@ -150,7 +150,7 @@ static void check_the_outline_curves(void) {
  * canvas and never reaches the panel.
  */
 static void check_it_stays_inside_its_stage(void) {
-    const uint16_t background = theme_active()->background;
+    const uint16_t background = theme_active()->colors.background;
     const frame_rect_t stage = coin_stage();
 
     for (int step = 0; step < 12; step++) {

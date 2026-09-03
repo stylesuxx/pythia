@@ -240,7 +240,7 @@ static frame_rect_t render(uint32_t now) {
         } break;
     }
 
-    return frame_render(now, theme_active()->background, draw_scene, &now);
+    return frame_render(now, theme_active()->colors.background, draw_scene, &now);
 }
 
 void mode_begin(uint32_t now, const mode_config_t *config) {

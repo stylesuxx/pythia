@@ -45,12 +45,12 @@ static void check_every_name_fits_the_rect(const theme_t *theme) {
     const uint16_t *pixels = canvas_pixels();
 
     for (uint8_t index = 0; index < DIE_COUNT; index++) {
-        canvas_fill(theme->background);
+        canvas_fill(theme->colors.background);
         caption_draw(DICE[index].name, 255);
 
         for (int row = 0; row < CANVAS_HEIGHT; row++) {
             for (int column = 0; column < CANVAS_WIDTH; column++) {
-                if (pixels[row * CANVAS_WIDTH + column] != theme->background &&
+                if (pixels[row * CANVAS_WIDTH + column] != theme->colors.background &&
                     !is_inside(rect, row, column)) {
                     EXPECT(false, "%s: %s draws at row %d column %d, outside the caption's rect",
                            theme->name, DICE[index].name, row, column);

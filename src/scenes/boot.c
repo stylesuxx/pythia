@@ -231,7 +231,7 @@ static void draw_glitch(const theme_t *theme, uint32_t elapsed) {
         .slices = GLITCH_SLICES,
         .max_shift = GLITCH_SHIFT,
     };
-    glitch_tear(&tear, 0, (elapsed - GLITCH_START_MS) / GLITCH_STEP_MS, theme->background);
+    glitch_tear(&tear, 0, (elapsed - GLITCH_START_MS) / GLITCH_STEP_MS, theme->colors.background);
 }
 
 static void draw_rule(const theme_t *theme, uint32_t elapsed, uint8_t alpha) {

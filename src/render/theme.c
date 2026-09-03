@@ -34,75 +34,19 @@ static theme_t overlay;
 static char overlay_name[CONFIG_NAME_CAPACITY];
 static bool has_overlay = false;
 
-/*
- * Where each colour of the file lands. The general roles have no slot of
- * their own: they reach the screen only as the fallback of a section key.
- */
+// Where each colour of the file lands: the field its row names.
+#define THEME_SLOT_CASE(section, stem, key, fallback)                                             \
+    case CONFIG_##stem: {                                                                         \
+        target = &theme->section.key;                                                             \
+    } break;
+#define THEME_SLOT_SECTION(section, LIST) LIST(THEME_SLOT_CASE)
+
 static uint16_t *slot(theme_t *theme, config_color_t which) {
     uint16_t *target = NULL;
 
     switch (which) {
-        case CONFIG_BACKGROUND: {
-            target = &theme->background;
-        } break;
+        CONFIG_SECTIONS(THEME_SLOT_SECTION)
 
-        case CONFIG_BOOT_WORDMARK: {
-            target = &theme->boot.wordmark;
-        } break;
-
-        case CONFIG_BOOT_SCRAMBLE: {
-            target = &theme->boot.scramble;
-        } break;
-
-        case CONFIG_BOOT_CAPTION: {
-            target = &theme->boot.caption;
-        } break;
-
-        case CONFIG_BOOT_RING: {
-            target = &theme->boot.ring;
-        } break;
-
-        case CONFIG_BOOT_RING_ACTIVE: {
-            target = &theme->boot.ring_active;
-        } break;
-
-        case CONFIG_LIST_NAME: {
-            target = &theme->list.name;
-        } break;
-
-        case CONFIG_LIST_RING: {
-            target = &theme->list.ring;
-        } break;
-
-        case CONFIG_LIST_RING_ACTIVE: {
-            target = &theme->list.ring_active;
-        } break;
-
-        case CONFIG_CAPTION_TEXT: {
-            target = &theme->caption.text;
-        } break;
-
-        case CONFIG_NUMBERS_TEXT: {
-            target = &theme->numbers.text;
-        } break;
-
-        case CONFIG_ORACLE_ANSWER: {
-            target = &theme->oracle.answer;
-        } break;
-
-        case CONFIG_ORACLE_MODIFIER: {
-            target = &theme->oracle.modifier;
-        } break;
-
-        case CONFIG_COIN_FACE: {
-            target = &theme->coin.face;
-        } break;
-
-        case CONFIG_PRIMARY:
-        case CONFIG_SECONDARY:
-        case CONFIG_MUTED:
-        case CONFIG_RING:
-        case CONFIG_RING_ACTIVE:
         case CONFIG_COLOR_COUNT: {
             target = NULL;
         } break;
@@ -120,10 +64,6 @@ static uint16_t *slot(theme_t *theme, config_color_t which) {
 static void lay_over(theme_t *theme, char *name, const config_theme_t *parsed) {
     for (int which = 0; which < CONFIG_COLOR_COUNT; which++) {
         uint16_t *const target = slot(theme, (config_color_t)which);
-        if (target == NULL) {
-            continue;
-        }
-
         const config_color_t fallback = CONFIG_COLORS[which].fallback;
         if (parsed->has_color[which]) {
             *target = parsed->color[which];

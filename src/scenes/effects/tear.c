@@ -91,7 +91,7 @@ static void tear_draw(const effect_subject_t *subject, uint32_t elapsed, uint8_t
                 alpha);
 
     if (elapsed < TEAR_MS) {
-        glitch_tear(&tear, tear_seed, elapsed / TEAR_STEP_MS, theme->background);
+        glitch_tear(&tear, tear_seed, elapsed / TEAR_STEP_MS, theme->colors.background);
     }
 }
 

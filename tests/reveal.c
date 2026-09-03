@@ -150,7 +150,7 @@ static bool frames_agree_at(const theme_t *theme, uint32_t now, uint16_t **refer
         roll_t roll = oracle_outcome(outcome);
         const uint8_t reference = reference_outcome(outcome);
         reveal_begin(&roll, 0);
-        canvas_fill(theme->background);
+        canvas_fill(theme->colors.background);
         reveal_draw(now, FRAME_ALPHA);
 
         if (reference == outcome) {
@@ -277,13 +277,13 @@ static void check_concealed_cues(const theme_t *theme, uint32_t until) {
 static void check_stage_band(const theme_t *theme, const roll_t *roll, uint32_t start) {
     static uint16_t background_row[CANVAS_WIDTH];
     for (int column = 0; column < CANVAS_WIDTH; column++) {
-        background_row[column] = theme->background;
+        background_row[column] = theme->colors.background;
     }
     const frame_rect_t stage = reveal_stage();
 
     reveal_begin(roll, start);
     for (uint32_t now = start; reveal_is_animating(now); now += STEP_MS) {
-        canvas_fill(theme->background);
+        canvas_fill(theme->colors.background);
         reveal_draw(now, FRAME_ALPHA);
         const uint16_t *pixels = canvas_pixels();
         for (int row = 0; row < CANVAS_HEIGHT; row++) {
@@ -304,7 +304,7 @@ static void check_stage_band(const theme_t *theme, const roll_t *roll, uint32_t 
 static bool is_background_only(const theme_t *theme) {
     const uint16_t *pixels = canvas_pixels();
     for (size_t index = 0; index < (size_t)CANVAS_WIDTH * CANVAS_HEIGHT; index++) {
-        if (pixels[index] != theme->background) {
+        if (pixels[index] != theme->colors.background) {
             return false;
         }
     }
@@ -314,7 +314,7 @@ static bool is_background_only(const theme_t *theme) {
 
 static void render_rest(const theme_t *theme, const roll_t *roll, uint32_t start) {
     reveal_begin(roll, start);
-    canvas_fill(theme->background);
+    canvas_fill(theme->colors.background);
     reveal_draw(start + LONG_AFTER_MS, FRAME_ALPHA);
 }
 
@@ -369,7 +369,7 @@ static void check_effect_settles_before_frames_stop(const theme_t *theme, uint8_
         reveal_begin(roll, start);
         int moving_frames = 0;
         for (uint32_t now = start; reveal_is_animating(now); now += interval) {
-            canvas_fill(theme->background);
+            canvas_fill(theme->colors.background);
             reveal_draw(now, FRAME_ALPHA);
             moving_frames += memcmp(rest, canvas_pixels(), frame_bytes) != 0;
         }
@@ -436,7 +436,7 @@ static void check_effect_opens_as_named(const theme_t *theme) {
 
     reveal_select_effect(effect_index_of("tear"));
     reveal_begin(roll, 0);
-    canvas_fill(theme->background);
+    canvas_fill(theme->colors.background);
     reveal_draw(0, FRAME_ALPHA);
     if (is_background_only(theme)) {
         fail("%s: the tear's first frame is empty", theme->name);
@@ -444,7 +444,7 @@ static void check_effect_opens_as_named(const theme_t *theme) {
 
     reveal_select_effect(effect_index_of("slide"));
     reveal_begin(roll, 0);
-    canvas_fill(theme->background);
+    canvas_fill(theme->colors.background);
     reveal_draw(0, FRAME_ALPHA);
     if (!is_background_only(theme)) {
         fail("%s: the slide's first frame already shows the number", theme->name);
@@ -477,13 +477,13 @@ static void check_oracle_ignores_the_effect(const theme_t *theme) {
             for (uint32_t now = 0; now < 2000; now += 37) {
                 reveal_select_effect(0);
                 reveal_begin(&roll, 0);
-                canvas_fill(theme->background);
+                canvas_fill(theme->colors.background);
                 reveal_draw(now, FRAME_ALPHA);
                 memcpy(reference, canvas_pixels(), frame_bytes);
 
                 reveal_select_effect(effect);
                 reveal_begin(&roll, 0);
-                canvas_fill(theme->background);
+                canvas_fill(theme->colors.background);
                 reveal_draw(now, FRAME_ALPHA);
                 if (memcmp(reference, canvas_pixels(), frame_bytes) != 0) {
                     fail("%s: %s draws differently at %u ms under %s", theme->name,
