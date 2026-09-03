@@ -1,6 +1,8 @@
-// Renders the boot sequence, the die list or the reveal animation off-device by
-// building the real canvas, font and animation sources against a host stub,
-// then encodes the frames straight to an animated GIF.
+/*
+ * Renders the boot sequence, the die list or the reveal animation off-device by
+ * building the real canvas, font and animation sources against a host stub,
+ * then encodes the frames straight to an animated GIF.
+ */
 
 #include <stdint.h>
 #include <stdio.h>
@@ -18,17 +20,21 @@
 
 #include "gif.h"
 
-// GIF frame delays are whole centiseconds, so frames are sampled 20 ms apart
-// and the file plays back at real speed.
+/**
+ * GIF frame delays are whole centiseconds, so frames are sampled 20 ms apart
+ * and the file plays back at real speed.
+ */
 #define FRAME_INTERVAL_MS 20
 #define FRAME_CENTISECONDS (FRAME_INTERVAL_MS / 10)
 
 // Time the finished reveal stays on screen before the GIF loops.
 #define REVEAL_END_HOLD_MS 3000
 
-// The list render: a pause on the armed screen, one click per die around the
-// whole list, then long enough for the choice to settle back into the armed
-// screen.
+/**
+ * The list render: a pause on the armed screen, one click per die around the
+ * whole list, then long enough for the choice to settle back into the armed
+ * screen.
+ */
 #define MENU_LEAD_MS 400
 #define MENU_STEP_MS 460
 #define MENU_SETTLE_MS 1700
@@ -44,8 +50,10 @@ void haptics_play(uint8_t effect) {
     (void)effect;
 }
 
-// Settings are device state; the preview pins them to the shipped defaults,
-// except the effect, which the reveal render takes from its arguments.
+/**
+ * Settings are device state; the preview pins them to the shipped defaults,
+ * except the effect, which the reveal render takes from its arguments.
+ */
 static uint8_t preview_effect = 0;
 
 bool settings_is_display_rotated(void) {
@@ -138,10 +146,12 @@ static int render_boot(gif_writer_t *gif) {
     return frames;
 }
 
-// One full turn of the knob, driven through the mode machine so the GIF shows
-// the firmware's own transitions: boot is stepped through unrecorded, then the
-// armed screen, one click per die around the whole list, and the second of
-// stillness that settles the choice back into the armed screen.
+/**
+ * One full turn of the knob, driven through the mode machine so the GIF shows
+ * the firmware's own transitions: boot is stepped through unrecorded, then the
+ * armed screen, one click per die around the whole list, and the second of
+ * stillness that settles the choice back into the armed screen.
+ */
 static int render_menu(gif_writer_t *gif) {
     const mode_input_t nothing = {0, false};
     uint8_t oracle = 0;

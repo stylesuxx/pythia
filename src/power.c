@@ -2,8 +2,10 @@
 
 #include <math.h>
 
-// Slow enough out that a hand reaching for the device can catch it, brisk
-// enough back that waking feels immediate.
+/**
+ * Slow enough out that a hand reaching for the device can catch it, brisk
+ * enough back that waking feels immediate.
+ */
 #define SLEEP_FADE_MS 700
 #define WAKE_FADE_MS 140
 
@@ -18,9 +20,11 @@ static power_state_t state = POWER_AWAKE;
 static uint32_t idle_timeout_ms = 0;
 static uint32_t last_input_ms = 0;
 
-// The running ramp: from the level it started at towards its end, linearly
-// over the state's duration. Restarting it from the current level is what
-// lets a caught dim brighten from where it was.
+/**
+ * The running ramp: from the level it started at towards its end, linearly
+ * over the state's duration. Restarting it from the current level is what
+ * lets a caught dim brighten from where it was.
+ */
 static uint32_t ramp_started_ms = 0;
 static float ramp_from = 255.0f;
 static uint8_t level = 255;

@@ -10,11 +10,13 @@
 #define COIN_HALF_THICKNESS 7.0f
 #define COIN_CENTRE_Y 176.0f
 
-// The coin tumbles about a horizontal axis, the way a tossed coin does, so the
-// milled edge sweeps below the face and back rather than across it.
-//
-// It comes to rest part way through a turn rather than square on; see
-// COIN_REST_TILT in the header for why.
+/*
+ * The coin tumbles about a horizontal axis, the way a tossed coin does, so the
+ * milled edge sweeps below the face and back rather than across it.
+ *
+ * It comes to rest part way through a turn rather than square on; see
+ * COIN_REST_TILT in the header for why.
+ */
 
 // Brisk: the flip is a punctuation mark, not a performance.
 #define FLIP_MS 760
@@ -29,13 +31,17 @@
 // How far the lit edge of the engraving sits from the groove, in pixels.
 #define ENGRAVE_DEPTH 2.0f
 
-// Milling around the rim. Ridges sit at fixed heights and only their
-// visibility changes as the coin turns, which is what a real coin does.
+/**
+ * Milling around the rim. Ridges sit at fixed heights and only their
+ * visibility changes as the coin turns, which is what a real coin does.
+ */
 #define RIDGE_COUNT 34
 #define RIDGE_THICKNESS 1.7f
 
-// Vertical supersampling for the silhouette, which has no closed-form
-// coverage the way a plain ellipse does.
+/**
+ * Vertical supersampling for the silhouette, which has no closed-form
+ * coverage the way a plain ellipse does.
+ */
 #define SUBSAMPLES 3
 
 #define TWO_PI 6.2831853f
@@ -86,27 +92,29 @@ static float overlap(int x, float left, float right) {
     return width > 0.0f ? width : 0.0f;
 }
 
-// Draws the coin body in one pass.
-//
-// At a given row the cylinder covers [centre - |offset| - w, centre + |offset| + w], and the
-// face covers [centre + offset - w, centre + offset + w]. Those differ by exactly one interval
-// of width 2|offset|, on the side the face is not leaning towards: that interval is the rim.
-//
-// Filling the silhouette and then painting the face over it would cover the same pixels twice,
-// and the face is most of them. Filling the two intervals in a single pass halves the work,
-// which matters because every one of these pixels is a read-modify-write into PSRAM.
-// Draws the coin body in one pass.
-//
-// The coin is a cylinder seen from above and to one side. Its two rims are
-// ellipses of the same size, offset from each other by the projected
-// thickness: horizontally by the turn, vertically by the fixed tilt. The
-// silhouette is everything the cylinder sweeps between them, and the face is
-// the near rim. Whatever the silhouette covers and the face does not is the
-// metal edge, which is why the rim needs no geometry of its own.
-//
-// Coverage is taken for both shapes per pixel and the rim gets the difference.
-// That costs the same as the older side-only version but no longer assumes the
-// rim is a single interval, which stops being true once the coin is tilted.
+/**
+ * Draws the coin body in one pass.
+ *
+ * At a given row the cylinder covers [centre - |offset| - w, centre + |offset| + w], and the
+ * face covers [centre + offset - w, centre + offset + w]. Those differ by exactly one interval
+ * of width 2|offset|, on the side the face is not leaning towards: that interval is the rim.
+ *
+ * Filling the silhouette and then painting the face over it would cover the same pixels twice,
+ * and the face is most of them. Filling the two intervals in a single pass halves the work,
+ * which matters because every one of these pixels is a read-modify-write into PSRAM.
+ * Draws the coin body in one pass.
+ *
+ * The coin is a cylinder seen from above and to one side. Its two rims are
+ * ellipses of the same size, offset from each other by the projected
+ * thickness: horizontally by the turn, vertically by the fixed tilt. The
+ * silhouette is everything the cylinder sweeps between them, and the face is
+ * the near rim. Whatever the silhouette covers and the face does not is the
+ * metal edge, which is why the rim needs no geometry of its own.
+ *
+ * Coverage is taken for both shapes per pixel and the rim gets the difference.
+ * That costs the same as the older side-only version but no longer assumes the
+ * rim is a single interval, which stops being true once the coin is tilted.
+ */
 static void draw_body(float centre_x, float offset_x, float offset_y, float half_width,
                       float half_height, uint16_t rim_color, uint16_t face_color,
                       uint8_t alpha) {
@@ -114,9 +122,11 @@ static void draw_body(float centre_x, float offset_x, float offset_y, float half
         return;
     }
 
-    // The sweep reaches |offset_y| either side of centre whichever way the coin
-    // is leaning. Using the signed value here shrinks the range once the coin
-    // turns past square on, and slices the far rim off flat.
+    /*
+     * The sweep reaches |offset_y| either side of centre whichever way the coin
+     * is leaning. Using the signed value here shrinks the range once the coin
+     * turns past square on, and slices the far rim off flat.
+     */
     const float reach = fabsf(offset_y);
     const int first = (int)floorf(COIN_CENTRE_Y - half_height - reach) - 2;
     const int last = (int)ceilf(COIN_CENTRE_Y + half_height + reach) + 2;
@@ -131,9 +141,11 @@ static void draw_body(float centre_x, float offset_x, float offset_y, float half
         for (int sub = 0; sub < SUBSAMPLES; sub++) {
             const float sample_y = (float)y - 0.5f + (0.5f + (float)sub) / (float)SUBSAMPLES;
 
-            // Three stations along the sweep: the far rim, the middle of the
-            // metal and the near rim. The sweep is only a few pixels long, so
-            // this traces its outline closely enough.
+            /*
+             * Three stations along the sweep: the far rim, the middle of the
+             * metal and the near rim. The sweep is only a few pixels long, so
+             * this traces its outline closely enough.
+             */
             float left = 0.0f;
             float right = 0.0f;
             bool any = false;
@@ -206,8 +218,10 @@ static void draw_body(float centre_x, float offset_x, float offset_y, float half
             }
         }
 
-        // Where every sample agreed the face is solid there is nothing to
-        // compute: that is almost every pixel of the coin.
+        /*
+         * Where every sample agreed the face is solid there is nothing to
+         * compute: that is almost every pixel of the coin.
+         */
         const bool solid = (rows == SUBSAMPLES);
         const int face_solid_from = (int)ceilf(face_inner_left + 0.5f);
         const int face_solid_to = (int)floorf(face_inner_right - 0.5f);
@@ -249,8 +263,10 @@ static void draw_body(float centre_x, float offset_x, float offset_y, float half
 void coin_flip(uint8_t landing, uint32_t now) {
     flip_from = angle_at(now);
 
-    // A face is square on at a whole number of turns, the other half a turn
-    // later. Take the first such angle at least FLIP_MIN_TURNS away.
+    /*
+     * A face is square on at a whole number of turns, the other half a turn
+     * later. Take the first such angle at least FLIP_MIN_TURNS away.
+     */
     const float rest = COIN_REST_TILT + ((landing == 1) ? 0.0f : (float)M_PI);
     const float earliest = flip_from + (float)FLIP_MIN_TURNS * TWO_PI;
     flip_to = rest + ceilf((earliest - rest) / TWO_PI) * TWO_PI;
@@ -275,21 +291,27 @@ static void draw_ridges(float centre_x, float offset_y, float half_width, float 
     for (int index = 0; index < RIDGE_COUNT; index++) {
         const float around = TWO_PI * (float)index / (float)RIDGE_COUNT;
 
-        // Only the rim on the near side of the tumble is showing, which is the
-        // side the face is not displaced towards.
+        /*
+         * Only the rim on the near side of the tumble is showing, which is the
+         * side the face is not displaced towards.
+         */
         if (sinf(around) * offset_y <= 0.0f) {
             continue;
         }
 
-        // Each ridge runs across the thickness, from the near rim to the far
-        // one, so with a horizontal tumble it is a short vertical stroke.
+        /*
+         * Each ridge runs across the thickness, from the near rim to the far
+         * one, so with a horizontal tumble it is a short vertical stroke.
+         */
         const float x = centre_x + half_width * cosf(around);
         const float near_y = (COIN_CENTRE_Y - offset_y) + half_height * sinf(around);
         const float far_y = (COIN_CENTRE_Y + offset_y) + half_height * sinf(around);
 
-        // Both endpoints sit exactly on the silhouette, and the stroke has
-        // round caps, so drawn as-is every ridge pokes half its width past the
-        // edge and the rim reads as a row of spikes. Pull the ends inside.
+        /*
+         * Both endpoints sit exactly on the silhouette, and the stroke has
+         * round caps, so drawn as-is every ridge pokes half its width past the
+         * edge and the rim reads as a row of spikes. Pull the ends inside.
+         */
         const float inset = RIDGE_THICKNESS * 0.5f + 0.6f;
         const float span = far_y - near_y;
         if (fabsf(span) <= 2.0f * inset) {
@@ -310,8 +332,10 @@ void coin_draw(uint32_t now, uint8_t alpha) {
     const float turn = angle_at(now);
     const float squash = cosf(turn);
 
-    // Tumbling about a horizontal axis leaves the width alone and foreshortens
-    // the height, and the thickness projects up or down rather than sideways.
+    /*
+     * Tumbling about a horizontal axis leaves the width alone and foreshortens
+     * the height, and the thickness projects up or down rather than sideways.
+     */
     const float half_width = COIN_RADIUS;
     const float half_height = COIN_RADIUS * fabsf(squash);
     const float offset_y = COIN_HALF_THICKNESS * sinf(turn) * (squash >= 0.0f ? 1.0f : -1.0f);
@@ -337,16 +361,20 @@ void coin_draw(uint32_t now, uint8_t alpha) {
         return;
     }
 
-    // Struck into the metal, not punched through it. The numeral stays the
-    // coin's own colour, only darker, and a lighter edge sits just below and
-    // right of it: the far wall of a groove catching the light. Painting the
-    // groove over the highlight leaves exactly that fringe showing.
+    /*
+     * Struck into the metal, not punched through it. The numeral stays the
+     * coin's own colour, only darker, and a lighter edge sits just below and
+     * right of it: the far wall of a groove catching the light. Painting the
+     * groove over the highlight leaves exactly that fringe showing.
+     */
     const uint16_t groove = shade(face_color, 0.42f);
     const uint16_t lit = shade(face_color, 1.35f);
 
-    // The device rides on the face, so it foreshortens with it and sits on the
-    // face's centre rather than the coin's. The baseline is placed so the ink,
-    // not the em box, is what ends up centred.
+    /*
+     * The device rides on the face, so it foreshortens with it and sits on the
+     * face's centre rather than the coin's. The baseline is placed so the ink,
+     * not the em box, is what ends up centred.
+     */
     const float face_centre_y = COIN_CENTRE_Y - offset_y;
     const float ink_offset = (float)glyph->top - (float)glyph->height * 0.5f;
     const float baseline = face_centre_y + ink_offset * fabsf(squash);
@@ -361,9 +389,11 @@ void coin_draw(uint32_t now, uint8_t alpha) {
 }
 
 frame_rect_t coin_stage(void) {
-    // Tumbling leaves the width fixed at the full diameter, and the height is
-    // widest square on, plus half the thickness for the rim and a margin for
-    // the anti-aliased edge.
+    /*
+     * Tumbling leaves the width fixed at the full diameter, and the height is
+     * widest square on, plus half the thickness for the rim and a margin for
+     * the anti-aliased edge.
+     */
     const float half_tall = COIN_RADIUS + COIN_HALF_THICKNESS + 3.0f;
     const float half_wide = COIN_RADIUS + 3.0f;
 

@@ -1,6 +1,8 @@
-// The number cuts in at its rest and tears sideways for a moment, the way the
-// boot wordmark does once PYTHIA// has settled, then stands clean. It is
-// there in full from the first frame; the tear is a signal locking on.
+/*
+ * The number cuts in at its rest and tears sideways for a moment, the way the
+ * boot wordmark does once PYTHIA// has settled, then stands clean. It is
+ * there in full from the first frame; the tear is a signal locking on.
+ */
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -11,9 +13,11 @@
 #include "haptics.h"
 #include "theme.h"
 
-// The boot's own tear at its own pace, with the shift scaled from the
-// wordmark's 54 px face to the 120 px digits so a slice moves the same
-// fraction of a glyph.
+/**
+ * The boot's own tear at its own pace, with the shift scaled from the
+ * wordmark's 54 px face to the 120 px digits so a slice moves the same
+ * fraction of a glyph.
+ */
 #define TEAR_MS 220
 #define TEAR_STEP_MS 40
 #define TEAR_SLICES 4
@@ -23,9 +27,11 @@ static glitch_tear_t tear;
 static uint32_t tear_seed = 0;
 static bool thumped = false;
 
-// Rows the text's ink covers: from the tallest glyph's top down to the lowest
-// glyph's bottom. Slices start within these rows, so the tear cuts the digits
-// rather than the blank stage around them, and none reaches past the stage.
+/**
+ * Rows the text's ink covers: from the tallest glyph's top down to the lowest
+ * glyph's bottom. Slices start within these rows, so the tear cuts the digits
+ * rather than the blank stage around them, and none reaches past the stage.
+ */
 static void find_ink_rows(const effect_subject_t *subject, int *top, int *bottom) {
     int ascent = 0;
     int descent = 0;

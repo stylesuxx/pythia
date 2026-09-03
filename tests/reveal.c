@@ -1,18 +1,20 @@
-// The reveal's promises, proved on the host. Until beat two, nothing on screen
-// and nothing in the hand tells whether a modifier is coming. Outcomes that
-// share an answer must be indistinguishable until then. Also proves that a
-// reveal frame never touches a pixel outside the stage band, which is what
-// lets a roll repaint only that band without disturbing the rim caption.
-//
-// Every millisecond of every outcome is rendered in every theme, because the
-// device draws at arbitrary instants and a coarser sample could miss a
-// one-frame leak. The exit status is the verdict.
-//
-// Numeric results arrive through whichever effect the setting names, and every
-// effect in the table is held to the same promises: it stays inside the stage
-// from any start instant, it lands on the same rest as every other effect, the
-// last frame drawn before frames stop is that rest, it plays exactly one cue,
-// and it leaves the oracle's frames and cues untouched.
+/*
+ * The reveal's promises, proved on the host. Until beat two, nothing on screen
+ * and nothing in the hand tells whether a modifier is coming. Outcomes that
+ * share an answer must be indistinguishable until then. Also proves that a
+ * reveal frame never touches a pixel outside the stage band, which is what
+ * lets a roll repaint only that band without disturbing the rim caption.
+ *
+ * Every millisecond of every outcome is rendered in every theme, because the
+ * device draws at arbitrary instants and a coarser sample could miss a
+ * one-frame leak. The exit status is the verdict.
+ *
+ * Numeric results arrive through whichever effect the setting names, and every
+ * effect in the table is held to the same promises: it stays inside the stage
+ * from any start instant, it lands on the same rest as every other effect, the
+ * last frame drawn before frames stop is that rest, it plays exactly one cue,
+ * and it leaves the oracle's frames and cues untouched.
+ */
 
 #include <stdarg.h>
 #include <stdbool.h>
@@ -120,8 +122,10 @@ static const char *describe(const roll_t *roll) {
              return text;
 }
 
-// The outcome an outcome is measured against: the first with the same answer.
-// An outcome that is its own reference has nothing to be compared with yet.
+/**
+ * The outcome an outcome is measured against: the first with the same answer.
+ * An outcome that is its own reference has nothing to be compared with yet.
+ */
 static uint8_t reference_outcome(uint8_t outcome) {
     const roll_t roll = oracle_outcome(outcome);
     for (uint8_t candidate = 0; candidate < outcome; candidate++) {
@@ -147,9 +151,11 @@ static uint32_t concealed_until(void) {
     return now;
 }
 
-// Renders every outcome at one instant and reports the first pair that share
-// an answer but not a frame. References hold the frame of the first outcome
-// seen for each answer.
+/**
+ * Renders every outcome at one instant and reports the first pair that share
+ * an answer but not a frame. References hold the frame of the first outcome
+ * seen for each answer.
+ */
 static bool frames_agree_at(const theme_t *theme, uint32_t now, uint16_t **references) {
     const size_t frame_bytes = (size_t)CANVAS_WIDTH * CANVAS_HEIGHT * sizeof(uint16_t);
 
@@ -186,8 +192,10 @@ static bool frames_agree_at(const theme_t *theme, uint32_t now, uint16_t **refer
     return true;
 }
 
-// Every concealed frame must be identical across the outcomes that share an
-// answer.
+/**
+ * Every concealed frame must be identical across the outcomes that share an
+ * answer.
+ */
 static void check_concealed_frames(const theme_t *theme, uint32_t until) {
     const size_t frame_bytes = (size_t)CANVAS_WIDTH * CANVAS_HEIGHT * sizeof(uint16_t);
     uint16_t *references[UINT8_MAX] = {NULL};
@@ -216,9 +224,11 @@ static int concealed_cue_count(const cue_log_t *log, uint32_t until) {
     return count;
 }
 
-// Every haptic cue inside the concealed span must match across the outcomes
-// that share an answer, in effect and in instant. Cues after it are the
-// outcome and may differ.
+/**
+ * Every haptic cue inside the concealed span must match across the outcomes
+ * that share an answer, in effect and in instant. Cues after it are the
+ * outcome and may differ.
+ */
 static void check_concealed_cues(const theme_t *theme, uint32_t until) {
     cue_log_t logs[ORACLE_OUTCOME_COUNT];
 
@@ -304,8 +314,10 @@ static void check_stage_band(const theme_t *theme, const roll_t *roll, uint32_t 
     }
 }
 
-// The rim caption must lie entirely outside the stage, so a band repaint can
-// never touch it. Measured from the widest die name rather than assumed.
+/**
+ * The rim caption must lie entirely outside the stage, so a band repaint can
+ * never touch it. Measured from the widest die name rather than assumed.
+ */
 static void check_caption_clears_stage(const theme_t *theme) {
     const frame_rect_t stage = reveal_stage();
     canvas_fill(theme->background);
@@ -368,11 +380,13 @@ static void check_effects_share_a_rest(const theme_t *theme) {
     free(reference);
 }
 
-// Frames are drawn at an interval only while the reveal reports itself
-// animating, and the last one drawn is what stays on the panel, so it must be
-// the rest. At the device's own interval, at least one earlier frame must
-// differ from the rest, or the effect does nothing. Every interval up to the
-// device's is swept when every_interval is set; otherwise only the device's.
+/**
+ * Frames are drawn at an interval only while the reveal reports itself
+ * animating, and the last one drawn is what stays on the panel, so it must be
+ * the rest. At the device's own interval, at least one earlier frame must
+ * differ from the rest, or the effect does nothing. Every interval up to the
+ * device's is swept when every_interval is set; otherwise only the device's.
+ */
 static void check_effect_settles_before_frames_stop(const theme_t *theme, uint8_t effect,
                                                     const roll_t *roll, uint32_t start,
                                                     bool every_interval) {
@@ -446,8 +460,10 @@ static void check_effect_plays_one_cue(const theme_t *theme, uint8_t effect, con
     }
 }
 
-// The tear is on screen in full from its first frame; the slide is still off
-// screen. Both are what their names promise.
+/**
+ * The tear is on screen in full from its first frame; the slide is still off
+ * screen. Both are what their names promise.
+ */
 static void check_effect_opens_as_named(const theme_t *theme) {
     const roll_t *roll = &NUMERIC_ROLLS[1];
 
@@ -468,8 +484,10 @@ static void check_effect_opens_as_named(const theme_t *theme) {
     }
 }
 
-// The setting must have no reach into the oracle: its frames and its cues are
-// the same under every effect.
+/**
+ * The setting must have no reach into the oracle: its frames and its cues are
+ * the same under every effect.
+ */
 static void check_oracle_ignores_the_effect(const theme_t *theme) {
     const size_t frame_bytes = (size_t)CANVAS_WIDTH * CANVAS_HEIGHT * sizeof(uint16_t);
     uint16_t *reference = malloc(frame_bytes);

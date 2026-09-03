@@ -1,6 +1,8 @@
-// The coin, driven through its angle. A flip has to arrive square on the face
-// that was rolled: a spin that stopped wherever it liked and had its face read
-// off the screen would bias the die towards whichever face the easing favours.
+/*
+ * The coin, driven through its angle. A flip has to arrive square on the face
+ * that was rolled: a spin that stopped wherever it liked and had its face read
+ * off the screen would bias the die towards whichever face the easing favours.
+ */
 
 #include <math.h>
 #include <stdio.h>
@@ -60,8 +62,10 @@ static void check_the_flip_really_spins(void) {
     const uint32_t start = 500;
     coin_flip(1, start);
 
-    // Count edge-on crossings: each is a half turn, so three whole turns is at
-    // least six of them.
+    /*
+     * Count edge-on crossings: each is a half turn, so three whole turns is at
+     * least six of them.
+     */
     int crossings = 0;
     float previous = coin_facing(start);
     for (uint32_t now = start; now <= start + FLIP_LIMIT_MS; now += STEP_MS) {
@@ -99,9 +103,11 @@ static void check_a_flip_continues_from_where_it_was(void) {
     EXPECT(fabsf(before - after) < 0.01f, "the flip jumped from %.3f to %.3f", before, after);
 }
 
-// The silhouette must curve. A flat top or bottom means rows of the far rim
-// were never visited, which is what a signed sweep bound did once the coin
-// turned past square on.
+/**
+ * The silhouette must curve. A flat top or bottom means rows of the far rim
+ * were never visited, which is what a signed sweep bound did once the coin
+ * turned past square on.
+ */
 static void check_the_outline_curves(void) {
     const uint16_t background = theme_active()->background;
 
@@ -139,8 +145,10 @@ static void check_the_outline_curves(void) {
     }
 }
 
-// A roll pushes only coin_stage(), so anything drawn outside it reaches the
-// canvas and never reaches the panel.
+/**
+ * A roll pushes only coin_stage(), so anything drawn outside it reaches the
+ * canvas and never reaches the panel.
+ */
 static void check_it_stays_inside_its_stage(void) {
     const uint16_t background = theme_active()->background;
     const frame_rect_t stage = coin_stage();

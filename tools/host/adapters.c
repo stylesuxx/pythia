@@ -1,7 +1,9 @@
-// Default host adapters for the hardware the shared sources talk to. Each is
-// weak, so a host program that needs to observe or script one, the way
-// tests/reveal.c records haptics and tests/oracle.c feeds the entropy draws,
-// defines its own and the linker takes that instead.
+/*
+ * Default host adapters for the hardware the shared sources talk to. Each is
+ * weak, so a host program that needs to observe or script one, the way
+ * tests/reveal.c records haptics and tests/oracle.c feeds the entropy draws,
+ * defines its own and the linker takes that instead.
+ */
 
 #include <stdbool.h>
 #include <stdint.h>

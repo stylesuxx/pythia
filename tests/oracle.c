@@ -1,10 +1,12 @@
-// Every face of every die must be exactly equally likely. That rests on the
-// roll discarding any draw that falls in the incomplete final window of
-// 2^32 modulo the side count and drawing again, so this program scripts the
-// entropy source and watches which draws a roll consumes.
-//
-// The host stands in a cycle counter of zero, so a scripted draw reaches the
-// roll unchanged.
+/*
+ * Every face of every die must be exactly equally likely. That rests on the
+ * roll discarding any draw that falls in the incomplete final window of
+ * 2^32 modulo the side count and drawing again, so this program scripts the
+ * entropy source and watches which draws a roll consumes.
+ *
+ * The host stands in a cycle counter of zero, so a scripted draw reaches the
+ * roll unchanged.
+ */
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -41,8 +43,10 @@ static const die_t *find_die(const char *name) {
     return NULL;
 }
 
-// Rolls a die against a scripted draw sequence and checks the answer and the
-// number of draws it took.
+/**
+ * Rolls a die against a scripted draw sequence and checks the answer and the
+ * number of draws it took.
+ */
 static void expect_roll(const char *die_name, const uint32_t *draws, int draw_count,
                         const char *answer, const char *modifier, int draws_consumed) {
     const die_t *die = find_die(die_name);
@@ -81,8 +85,10 @@ static void expect_roll(const char *die_name, const uint32_t *draws, int draw_co
     }
 }
 
-// The table reads worst to best: every NO before any YES, each answer once
-// with each of its three modifiers, no outcome repeated.
+/**
+ * The table reads worst to best: every NO before any YES, each answer once
+ * with each of its three modifiers, no outcome repeated.
+ */
 static void check_outcome_table(void) {
     bool seen_yes = false;
     for (uint8_t index = 0; index < ORACLE_OUTCOME_COUNT; index++) {
@@ -135,8 +141,10 @@ int main(void) {
     expect_roll("D66", (uint32_t[]){5, 0}, 2, "61", NULL, 2);
     expect_roll("D66", (uint32_t[]){4294967293u, 5, 5}, 3, "66", NULL, 3);
 
-    // The oracle rolls one d6 against its table: draw k lands on outcome k,
-    // and a draw in the window is taken again.
+    /*
+     * The oracle rolls one d6 against its table: draw k lands on outcome k,
+     * and a draw in the window is taken again.
+     */
     for (uint8_t index = 0; index < ORACLE_OUTCOME_COUNT; index++) {
         const roll_t outcome = oracle_outcome(index);
         expect_roll("ORACLE", (uint32_t[]){index}, 1, outcome.answer, outcome.modifier, 1);

@@ -1,10 +1,12 @@
-// Rasterizes every font the themes need into C source.
-//
-// Each glyph is stored as 4-bit alpha coverage, packed two pixels per byte with
-// the high nibble first and each row padded to a whole byte. The device expands
-// a nibble back to 0-255 by multiplying by 17.
-//
-// Adding a theme means adding rows to FONTS and running `make fonts`.
+/*
+ * Rasterizes every font the themes need into C source.
+ *
+ * Each glyph is stored as 4-bit alpha coverage, packed two pixels per byte with
+ * the high nibble first and each row padded to a whole byte. The device expands
+ * a nibble back to 0-255 by multiplying by 17.
+ *
+ * Adding a theme means adding rows to FONTS and running `make fonts`.
+ */
 
 #include <math.h>
 #include <stdbool.h>
@@ -24,14 +26,18 @@
 // Die names (D2 through D100, ORACLE) and the oracle modifiers (and, but).
 #define LABEL_CHARACTERS "0123456789ACDELORabdnut"
 
-// The boot wordmark, plus the glyphs a position cycles through before it
-// settles. src/boot.c owns the scramble set and must stay within this one.
+/**
+ * The boot wordmark, plus the glyphs a position cycles through before it
+ * settles. src/boot.c owns the scramble set and must stay within this one.
+ */
 #define BOOT_WORDMARK_CHARACTERS "PYTHIA/0123456789ABCDEFXZ#%&"
 #define BOOT_CAPTION_CHARACTERS "DELPHI SYSTEMS"
 
-// Decodes one UTF-8 sequence and steps the cursor past it, so a character set
-// can name a symbol above ASCII. Malformed input yields the lead byte, which
-// then finds no glyph in the typeface and drops out.
+/**
+ * Decodes one UTF-8 sequence and steps the cursor past it, so a character set
+ * can name a symbol above ASCII. Malformed input yields the lead byte, which
+ * then finds no glyph in the typeface and drops out.
+ */
 static uint32_t next_codepoint(const char **cursor) {
     const unsigned char lead = (unsigned char)**cursor;
     int trailing = 0;
@@ -67,8 +73,10 @@ static int compare_codepoints(const void *left, const void *right) {
     return (first > second) - (first < second);
 }
 
-// The character set in ascending order with duplicates collapsed, which is the
-// order font_find_glyph() binary searches.
+/**
+ * The character set in ascending order with duplicates collapsed, which is the
+ * order font_find_glyph() binary searches.
+ */
 static int sorted_codepoints(const char *characters, uint32_t *out, int capacity) {
     int count = 0;
     for (const char *cursor = characters; *cursor != '\0' && count < capacity;) {
@@ -193,8 +201,10 @@ static bool generate_font(const font_spec_t *spec, const char *output_directory)
         return false;
     }
 
-    // The em maps to the requested pixel size, as a font size in pixels does
-    // in FreeType. The ascent and descent round outwards to whole pixels.
+    /*
+     * The em maps to the requested pixel size, as a font size in pixels does
+     * in FreeType. The ascent and descent round outwards to whole pixels.
+     */
     const float scale = stbtt_ScaleForMappingEmToPixels(&info, (float)spec->size);
     int ascent_units, descent_units, line_gap_units;
     stbtt_GetFontVMetrics(&info, &ascent_units, &descent_units, &line_gap_units);

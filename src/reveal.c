@@ -9,8 +9,10 @@
 #include "settings.h"
 #include "theme.h"
 
-// Both faces share one optical centre: YES and NO stand 70 rows tall on their
-// baseline, the digits 92 rows on theirs.
+/**
+ * Both faces share one optical centre: YES and NO stand 70 rows tall on their
+ * baseline, the digits 92 rows on theirs.
+ */
 #define ANSWER_BASELINE 212
 #define NUMBER_BASELINE 223
 #define MODIFIER_GAP 20
@@ -28,8 +30,10 @@
 #define BEAT_HOLD_MS 620
 #define MODIFIER_SLIDE_MS 260
 
-// The second beat always starts at the same moment, whether or not a modifier
-// is coming. Nothing before it may hint at the outcome.
+/**
+ * The second beat always starts at the same moment, whether or not a modifier
+ * is coming. Nothing before it may hint at the outcome.
+ */
 #define BEAT_TWO_MS (ANSWER_SLIDE_MS + BEAT_HOLD_MS)
 #define REVEAL_TOTAL_MS (BEAT_TWO_MS + MODIFIER_SLIDE_MS)
 
@@ -37,17 +41,21 @@
 #define ANSWER_THUMP_MS (ANSWER_SLIDE_MS - 60)
 #define MODIFIER_THUMP_MS (BEAT_TWO_MS + 90)
 
-// Frames keep coming this long after a numeric effect reaches its rest. The
-// frame drawn at or after the rest is the one that stays on the panel, and
-// frames are paced at an interval, so stopping exactly at the rest could leave
-// the last moving frame standing.
+/**
+ * Frames keep coming this long after a numeric effect reaches its rest. The
+ * frame drawn at or after the rest is the one that stays on the panel, and
+ * frames are paced at an interval, so stopping exactly at the rest could leave
+ * the last moving frame standing.
+ */
 #define EFFECT_SETTLE_MS 32
 
 static roll_t current_roll;
 static uint32_t started_ms = 0;
 
-// A numeric result is handed to the chosen effect. The oracle keeps its own
-// choreography below, so the setting can never touch it.
+/**
+ * A numeric result is handed to the chosen effect. The oracle keeps its own
+ * choreography below, so the setting can never touch it.
+ */
 extern const effect_t EFFECT_SLIDE;
 static const effect_t *effect = &EFFECT_SLIDE;
 static effect_subject_t subject;
@@ -89,8 +97,10 @@ static float ease_out_cubic(float t) {
     return 1.0f - inverse * inverse * inverse;
 }
 
-// Overshoots the target and settles back. This is what gives the modifier its
-// snap on arrival.
+/**
+ * Overshoots the target and settles back. This is what gives the modifier its
+ * snap on arrival.
+ */
 static float ease_out_back(float t) {
     const float tension = 1.9f;
     const float inverse = t - 1.0f;

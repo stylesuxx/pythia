@@ -1,7 +1,9 @@
-// Proves the screen power machine through its interface: the screen stays lit
-// while input keeps coming or sleep is not permitted, dims gradually once the
-// idle timeout passes, is dark and asleep afterwards, and any input brings it
-// back with a ramp that continues from whatever level the dim had reached.
+/*
+ * Proves the screen power machine through its interface: the screen stays lit
+ * while input keeps coming or sleep is not permitted, dims gradually once the
+ * idle timeout passes, is dark and asleep afterwards, and any input brings it
+ * back with a ramp that continues from whatever level the dim had reached.
+ */
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -26,8 +28,10 @@ static int failures = 0;
         }                                                                                         \
     } while (0)
 
-// Steps from `from` until the screen is asleep and returns that instant, or 0
-// if it never sleeps within twice the timeout.
+/**
+ * Steps from `from` until the screen is asleep and returns that instant, or 0
+ * if it never sleeps within twice the timeout.
+ */
 static uint32_t sleep_from(uint32_t from) {
     for (uint32_t now = from; now <= from + 2 * IDLE_MS; now += STEP_MS) {
         power_step(now, true);
@@ -151,8 +155,10 @@ static void check_wake_from_dark_ramps_up(void) {
     EXPECT(power_is_awake(), "the screen is not awake at full light");
 }
 
-// A hand that catches the dim gets the light back from where it was, and the
-// touch counts as a wake, since the machine only acts on input while awake.
+/**
+ * A hand that catches the dim gets the light back from where it was, and the
+ * touch counts as a wake, since the machine only acts on input while awake.
+ */
 static void check_a_caught_dim_brightens_from_where_it_was(void) {
     power_begin(0, IDLE_MS);
 

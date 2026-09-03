@@ -5,17 +5,19 @@
 #include "esp_timer.h"
 #include "knob_pins.h"
 
-// The knob is a two-way switch rather than a quadrature encoder. Each click
-// pulls one line low for 6 to 100 ms, A for clockwise and B for
-// counter-clockwise, while the other line stays high. Waveshare's own driver
-// decodes it the same way, by polling.
-//
-// The lines are not clean. Contacts bounce at both ends of a pulse, and when
-// one line rises the other dips for a fraction of a millisecond. Sampling on a
-// timer sidesteps all of it: a line counts as low only after SETTLE_SAMPLES
-// consecutive low samples, and must be seen high for as many before it can
-// count again. An edge interrupt cannot do this, because the level it reads
-// after a bouncing edge lags the edge that fired.
+/**
+ * The knob is a two-way switch rather than a quadrature encoder. Each click
+ * pulls one line low for 6 to 100 ms, A for clockwise and B for
+ * counter-clockwise, while the other line stays high. Waveshare's own driver
+ * decodes it the same way, by polling.
+ *
+ * The lines are not clean. Contacts bounce at both ends of a pulse, and when
+ * one line rises the other dips for a fraction of a millisecond. Sampling on a
+ * timer sidesteps all of it: a line counts as low only after SETTLE_SAMPLES
+ * consecutive low samples, and must be seen high for as many before it can
+ * count again. An edge interrupt cannot do this, because the level it reads
+ * after a bouncing edge lags the edge that fired.
+ */
 #define SAMPLE_INTERVAL_US 1000
 #define SETTLE_SAMPLES 3
 

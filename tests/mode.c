@@ -1,6 +1,8 @@
-// The interaction rules, driven through the mode machine with a scripted clock
-// and scripted inputs. Haptics and the persisted die are observed through the
-// host adapters this program overrides.
+/*
+ * The interaction rules, driven through the mode machine with a scripted clock
+ * and scripted inputs. Haptics and the persisted die are observed through the
+ * host adapters this program overrides.
+ */
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -20,8 +22,10 @@
 #define STEP_MS 2
 #define BOOT_LIMIT_MS 10000
 
-// The timeout handed to the machine. Short, so the sleep checks run in a
-// moment; the ramps themselves are proven in tests/power.c.
+/**
+ * The timeout handed to the machine. Short, so the sleep checks run in a
+ * moment; the ramps themselves are proven in tests/power.c.
+ */
 #define IDLE_SLEEP_MS 5000
 
 static int failures = 0;
@@ -56,8 +60,10 @@ bool settings_is_coin_enabled(void) {
     return coin_setting;
 }
 
-// The interaction rules hold under every effect. The slide is pinned so the
-// roll cue counted below is one known haptic.
+/**
+ * The interaction rules hold under every effect. The slide is pinned so the
+ * roll cue counted below is one known haptic.
+ */
 uint8_t settings_effect_index(void) {
     return effect_index_of("slide");
 }
@@ -83,8 +89,10 @@ static bool is_stage(frame_rect_t rows) {
     return rows.top == stage.top && rows.height == stage.height;
 }
 
-// A frame may wait for the interval since the last one, so a change asked
-// for now is allowed to arrive within that window.
+/**
+ * A frame may wait for the interval since the last one, so a change asked
+ * for now is allowed to arrive within that window.
+ */
 static bool whole_frame_within(uint32_t now, frame_rect_t rows, uint32_t window) {
     bool whole = is_whole(rows);
     for (uint32_t later = now + STEP_MS; !whole && later <= now + window; later += STEP_MS) {
@@ -94,8 +102,10 @@ static bool whole_frame_within(uint32_t now, frame_rect_t rows, uint32_t window)
     return whole;
 }
 
-// Steps quietly from `from` to `to`, returning the first instant the machine
-// reached `target`, or 0 if it never did.
+/**
+ * Steps quietly from `from` to `to`, returning the first instant the machine
+ * reached `target`, or 0 if it never did.
+ */
 static uint32_t step_until(uint32_t from, uint32_t to, ui_mode_t target) {
     for (uint32_t now = from; now <= to; now += STEP_MS) {
         mode_step(now, NOTHING);
@@ -238,9 +248,11 @@ static void check_tap_on_a_result_rolls_again(void) {
     EXPECT(mode_current() == MODE_RESULT, "the second roll did not stay on the result");
 }
 
-// D2 is thrown as a coin unless the setting turns that off, in which case it
-// prints a number like every other die. The two draw different stages, so the
-// rows a roll asks for say which one ran.
+/**
+ * D2 is thrown as a coin unless the setting turns that off, in which case it
+ * prints a number like every other die. The two draw different stages, so the
+ * rows a roll asks for say which one ran.
+ */
 static void check_the_coin_can_be_switched_off(void) {
     uint8_t coin_die = 0;
     for (uint8_t index = 0; index < DIE_COUNT; index++) {
@@ -289,8 +301,10 @@ static void check_turning_leaves_a_result(void) {
     EXPECT(mode_selected_die() == 6, "the click landed on %u", (unsigned)mode_selected_die());
 }
 
-// A resting screen asks for nothing; an animating one asks for the band, and
-// no more often than the frame interval.
+/**
+ * A resting screen asks for nothing; an animating one asks for the band, and
+ * no more often than the frame interval.
+ */
 static void check_frames_are_paced(void) {
     const uint32_t now = boot_on(5) + 1000;
     mode_step(now, NOTHING);
@@ -321,8 +335,10 @@ static void check_frames_are_paced(void) {
     EXPECT(stage >= 15 && stage <= 21, "the reveal presented %d band frames in 320 ms", stage);
 }
 
-// Runs the clock forward until the screen is fully dark, then returns that
-// instant. Zero if it never slept.
+/**
+ * Runs the clock forward until the screen is fully dark, then returns that
+ * instant. Zero if it never slept.
+ */
 static uint32_t sleep_from(uint32_t from) {
     for (uint32_t now = from; now <= from + IDLE_SLEEP_MS + 5000; now += STEP_MS) {
         mode_step(now, NOTHING);

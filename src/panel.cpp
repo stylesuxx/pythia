@@ -14,15 +14,19 @@
 #include "knob_pins.h"
 #include "settings.h"
 
-// One band per DMA transfer. 360x40 keeps each staging buffer under 29 KB of
-// internal RAM and divides the panel height exactly. Two buffers, so the next
-// band is converted while the previous one is still on the wire.
+/**
+ * One band per DMA transfer. 360x40 keeps each staging buffer under 29 KB of
+ * internal RAM and divides the panel height exactly. Two buffers, so the next
+ * band is converted while the previous one is still on the wire.
+ */
 #define PANEL_BAND_LINES 40
 #define PANEL_BAND_COUNT 2
 
-// The ST77916 datasheet caps the QSPI clock at 50 MHz and the ESP32-S3 offers
-// 40 or 80, so 40 is the in-spec choice. The panel does accept 80, but with
-// conversion overlapped the wire is no longer what bounds a present.
+/**
+ * The ST77916 datasheet caps the QSPI clock at 50 MHz and the ESP32-S3 offers
+ * 40 or 80, so 40 is the in-spec choice. The panel does accept 80, but with
+ * conversion overlapped the wire is no longer what bounds a present.
+ */
 #define PANEL_QSPI_HZ (40 * 1000 * 1000)
 
 static esp_lcd_panel_handle_t panel = NULL;
@@ -52,9 +56,11 @@ bool panel_begin(void) {
         return false;
     }
 
-    // ST77916_PANEL_BUS_QSPI_CONFIG orders .sclk_io_num before .data0_io_num,
-    // but spi_bus_config_t declares data0 first and C++ requires designated
-    // initialisers in declaration order, so this is filled out by hand.
+    /*
+     * ST77916_PANEL_BUS_QSPI_CONFIG orders .sclk_io_num before .data0_io_num,
+     * but spi_bus_config_t declares data0 first and C++ requires designated
+     * initialisers in declaration order, so this is filled out by hand.
+     */
     spi_bus_config_t bus_config = {};
     bus_config.data0_io_num = PIN_LCD_D0;
     bus_config.data1_io_num = PIN_LCD_D1;
@@ -95,9 +101,11 @@ void panel_present(const uint16_t *pixels) {
     panel_present_rect(pixels, 0, CANVAS_HEIGHT, 0, CANVAS_WIDTH);
 }
 
-// Copies a rectangle out of the canvas into a DMA band, in the panel's byte
-// order. Half a turn is the same rectangle read backwards, which lands it on
-// the mirrored rows and columns.
+/**
+ * Copies a rectangle out of the canvas into a DMA band, in the panel's byte
+ * order. Half a turn is the same rectangle read backwards, which lands it on
+ * the mirrored rows and columns.
+ */
 static void convert_rect(uint16_t *destination, const uint16_t *pixels, int top, int rows,
                          int left, int span, bool rotated) {
     for (int row = 0; row < rows; row++) {
@@ -145,8 +153,10 @@ void panel_present_rect(const uint16_t *pixels, int top, int height, int left, i
 
     const int span = to - from;
     const bool rotated = settings_is_display_rotated();
-    // Bands are sized in whole rows of the full canvas, so a narrower rectangle
-    // simply fits more of its rows into one.
+    /*
+     * Bands are sized in whole rows of the full canvas, so a narrower rectangle
+     * simply fits more of its rows into one.
+     */
     const int band_rows = (CANVAS_WIDTH * PANEL_BAND_LINES) / span;
 
     int sent = 0;
@@ -173,8 +183,10 @@ void panel_present_rect(const uint16_t *pixels, int top, int height, int left, i
     }
 }
 
-// The init table ends with DISPON, so output starts enabled with the light
-// off, which is how panel_begin() leaves things for the first frame.
+/**
+ * The init table ends with DISPON, so output starts enabled with the light
+ * off, which is how panel_begin() leaves things for the first frame.
+ */
 static uint8_t applied_level = 0;
 static bool output_enabled = true;
 

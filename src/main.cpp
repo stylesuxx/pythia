@@ -1,7 +1,9 @@
-// The Arduino shell: brings the hardware up, then every loop reads the clock
-// and the inputs, steps the mode machine, and pushes whatever it drew to the
-// panel. Every rule of the interaction lives in mode.c, which the host can
-// build and test.
+/*
+ * The Arduino shell: brings the hardware up, then every loop reads the clock
+ * and the inputs, steps the mode machine, and pushes whatever it drew to the
+ * panel. Every rule of the interaction lives in mode.c, which the host can
+ * build and test.
+ */
 
 #include <Arduino.h>
 #include <Wire.h>
@@ -20,9 +22,11 @@
 
 #define TOUCH_DEBOUNCE_MS 250
 
-// Idle time before the screen goes dark. Overridable from the build flags, so
-// a build that sleeps quickly is a flag rather than an edit:
-// PLATFORMIO_BUILD_FLAGS=-DIDLE_SLEEP_MS=10000
+/**
+ * Idle time before the screen goes dark. Overridable from the build flags, so
+ * a build that sleeps quickly is a flag rather than an edit:
+ * PLATFORMIO_BUILD_FLAGS=-DIDLE_SLEEP_MS=10000
+ */
 #ifndef IDLE_SLEEP_MS
 #define IDLE_SLEEP_MS 120000
 #endif
@@ -59,8 +63,10 @@ void setup() {
 
     settings_begin();
 
-    // The panel keeps its RAM through a reset, so the first frame goes up
-    // before the backlight does.
+    /*
+     * The panel keeps its RAM through a reset, so the first frame goes up
+     * before the backlight does.
+     */
     canvas_fill(theme_active()->background);
     panel_present(canvas_pixels());
     panel_set_backlight(255);
@@ -91,8 +97,10 @@ void loop() {
 
     panel_set_backlight(mode_backlight());
 
-    // Every pass polls the touch controller over I2C, so this caps the poll
-    // rate at a few hundred a second and yields the core to the encoder's
-    // sampling timer. Frames are paced inside the machine.
+    /*
+     * Every pass polls the touch controller over I2C, so this caps the poll
+     * rate at a few hundred a second and yields the core to the encoder's
+     * sampling timer. Frames are paced inside the machine.
+     */
     delay(2);
 }

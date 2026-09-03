@@ -4,13 +4,15 @@
 #include <stdint.h>
 #include <stdio.h>
 
-// Streams RGB565 frames to a looping GIF89a file.
-//
-// Frames arrive already quantised, so each image's palette is exactly the set
-// of colours it contains and nothing is dithered. Pixels that match the frame
-// before are written transparent and only the changed bounding box is stored,
-// and a frame identical to the last one extends its delay instead of being
-// written again.
+/**
+ * Streams RGB565 frames to a looping GIF89a file.
+ *
+ * Frames arrive already quantised, so each image's palette is exactly the set
+ * of colours it contains and nothing is dithered. Pixels that match the frame
+ * before are written transparent and only the changed bounding box is stored,
+ * and a frame identical to the last one extends its delay instead of being
+ * written again.
+ */
 typedef struct {
     FILE *file;
     int width;

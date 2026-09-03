@@ -1,8 +1,10 @@
-// The canvas primitives must be symmetric where their geometry is. A ring
-// drawn about the panel centre reads the same in every mirror, and a line
-// drawn one way is the transpose of the same line drawn the other. The rim
-// ring once carried a notch at 12 and 6 o'clock that only a row-by-row
-// mirror would have caught.
+/*
+ * The canvas primitives must be symmetric where their geometry is. A ring
+ * drawn about the panel centre reads the same in every mirror, and a line
+ * drawn one way is the transpose of the same line drawn the other. The rim
+ * ring once carried a notch at 12 and 6 o'clock that only a row-by-row
+ * mirror would have caught.
+ */
 
 #include <math.h>
 #include <stdbool.h>
@@ -24,8 +26,10 @@ static void fail(const char *what, int x, int y, int mirror_x, int mirror_y) {
     failures++;
 }
 
-// Pixel centres sit on integer coordinates and the drawing centre on 180.0,
-// so x mirrors to 360 - x. Column 0 has no partner and is skipped.
+/**
+ * Pixel centres sit on integer coordinates and the drawing centre on 180.0,
+ * so x mirrors to 360 - x. Column 0 has no partner and is skipped.
+ */
 static void expect_mirror_symmetry(const char *what) {
     const uint16_t *pixels = canvas_pixels();
     for (int y = 1; y < CANVAS_HEIGHT; y++) {
@@ -79,8 +83,10 @@ static void check_full_ring(void) {
     }
 }
 
-// The bottom half, swept from 3 o'clock through 6 to 9. Nothing above the
-// centre row may light, and the half must mirror left to right.
+/**
+ * The bottom half, swept from 3 o'clock through 6 to 9. Nothing above the
+ * centre row may light, and the half must mirror left to right.
+ */
 static void check_half_ring(void) {
     canvas_fill(BACKGROUND);
     canvas_arc(CENTRE, CENTRE, 172.0f, 0.0f, (float)M_PI, 3.0f, INK, 255);
@@ -97,9 +103,11 @@ static void check_half_ring(void) {
     }
 }
 
-// A gradient arc's alpha runs between its two ends, and blending is monotone
-// in alpha, so its footprint sits between the footprints of flat arcs drawn at
-// those two alphas.
+/**
+ * A gradient arc's alpha runs between its two ends, and blending is monotone
+ * in alpha, so its footprint sits between the footprints of flat arcs drawn at
+ * those two alphas.
+ */
 static void check_gradient_footprint(void) {
     static bool dim[CANVAS_WIDTH * CANVAS_HEIGHT];
     static bool bright[CANVAS_WIDTH * CANVAS_HEIGHT];

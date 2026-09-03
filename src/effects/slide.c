@@ -1,5 +1,7 @@
-// The number slides in from beyond the left edge and decelerates hard onto its
-// rest, the same entry the oracle's answer makes.
+/*
+ * The number slides in from beyond the left edge and decelerates hard onto its
+ * rest, the same entry the oracle's answer makes.
+ */
 
 #include <math.h>
 #include <stdbool.h>

@@ -15,8 +15,10 @@ const char BOOT_WORDMARK[] = "PYTHIA//";
 
 const char BOOT_MANUFACTURER[] = "DELPHI SYSTEMS";
 
-// Every one of these must be in BOOT_WORDMARK_CHARACTERS in
-// tools/make_fonts.c; tests/glyphs.c holds the font to it.
+/**
+ * Every one of these must be in BOOT_WORDMARK_CHARACTERS in
+ * tools/make_fonts.c; tests/glyphs.c holds the font to it.
+ */
 const char BOOT_SCRAMBLE_CHARACTERS[] = "0123456789ABCDEFXZ#%&/";
 #define SCRAMBLE_COUNT ((uint32_t)(sizeof(BOOT_SCRAMBLE_CHARACTERS) - 1))
 
@@ -152,12 +154,15 @@ static void draw_ring(const theme_t *theme, uint32_t elapsed, uint8_t alpha) {
     const float centre = CANVAS_WIDTH / 2.0f;
     const float two_pi = 2.0f * (float)M_PI;
 
-    // The comet keeps its gradient from first spark to last: bright at the
-    // head, dimming to nothing along the tail. While closing, the tail grows to
-    // a full turn and the resting ring fades in beneath it, so the shrinking
-    // gap fills with the resting colour and the moment of closure has nothing
-    // to snap. Once whole, the comet dissolves out over the resting ring, still
-    // turning, and only the colour is left to settle.
+    /*
+     * The comet keeps its gradient from first spark to last: bright at the
+     * head, dimming to nothing along the tail. While closing, the tail grows to
+     * a full turn and the resting ring fades in beneath it. The shrinking
+     * gap fills with the resting colour and the moment of closure has nothing
+     * to snap.
+     * Once whole, the comet dissolves out over the resting ring, still turning,
+     * and only the colour is left to settle.
+     */
     float closing = 0.0f;
     if (elapsed >= RING_CLOSE_START_MS) {
         closing = ease_in_out_cubic(
@@ -211,8 +216,10 @@ static void draw_wordmark(const theme_t *theme, uint32_t elapsed, uint8_t alpha)
     }
 }
 
-// Tears the wordmark rows sideways in a few slices that change every
-// GLITCH_STEP_MS, so the tear flickers rather than sliding.
+/**
+ * Tears the wordmark rows sideways in a few slices that change every
+ * GLITCH_STEP_MS, so the tear flickers rather than sliding.
+ */
 static void draw_glitch(const theme_t *theme, uint32_t elapsed) {
     if (elapsed < GLITCH_START_MS || elapsed >= GLITCH_START_MS + GLITCH_MS) {
         return;
@@ -254,8 +261,10 @@ static void draw_caption(const theme_t *theme, uint32_t elapsed, uint8_t alpha) 
                     scale_alpha(alpha, progress));
 }
 
-// A faint band drifting down the whole panel, the one thing that keeps moving
-// while the wordmark holds.
+/**
+ * A faint band drifting down the whole panel, the one thing that keeps moving
+ * while the wordmark holds.
+ */
 static void draw_scanline(const theme_t *theme, uint32_t elapsed, uint8_t alpha) {
     const uint32_t phase = elapsed % SCAN_PERIOD_MS;
     const int travel = CANVAS_HEIGHT + SCAN_BAND_ROWS;

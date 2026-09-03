@@ -1,7 +1,9 @@
-// Every mark the firmware draws must be present in the face it is drawn with.
-// canvas_text() skips a missing glyph in silence, so a widened die list, a
-// reworded outcome, a new scramble glyph or a coin face the typeface does not
-// carry would otherwise fail only on the panel.
+/*
+ * Every mark the firmware draws must be present in the face it is drawn with.
+ * canvas_text() skips a missing glyph in silence, so a widened die list, a
+ * reworded outcome, a new scramble glyph or a coin face the typeface does not
+ * carry would otherwise fail only on the panel.
+ */
 
 #include <stdbool.h>
 #include <stdio.h>

@@ -8,8 +8,10 @@
 extern "C" {
 #endif
 
-// A theme owns both the typefaces and the palette, so a new look is one entry
-// here plus its rows in tools/make_fonts.c.
+/**
+ * A theme owns both the typefaces and the palette, so a new look is one entry
+ * here plus its rows in tools/make_fonts.c.
+ */
 typedef struct {
     const char *name;
     const font_t *answer_font; // YES and NO

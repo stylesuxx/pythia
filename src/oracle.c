@@ -54,15 +54,19 @@ roll_t oracle_outcome(uint8_t index) {
     return roll;
 }
 
-// Keeps the SAR ADC feeding thermal noise into the hardware RNG for the life
-// of the app. It claims the ADC, so any ADC read must bracket itself with
-// bootloader_random_disable().
+/**
+ * Keeps the SAR ADC feeding thermal noise into the hardware RNG for the life
+ * of the app. It claims the ADC, so any ADC read must bracket itself with
+ * bootloader_random_disable().
+ */
 void oracle_begin(void) {
   bootloader_random_enable();
 }
 
-// One 32-bit draw: hardware RNG mixed with the CPU cycle counter, which at
-// roll time carries the instant of the tap.
+/**
+ * One 32-bit draw: hardware RNG mixed with the CPU cycle counter, which at
+ * roll time carries the instant of the tap.
+ */
 static uint32_t draw(void) {
   return esp_random() ^ esp_cpu_get_cycle_count();
 }

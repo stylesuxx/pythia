@@ -6,8 +6,10 @@
 #define MAX_COLOURS 255 // one slot stays free for the transparent index
 #define LZW_MAX_CODE 4096
 
-// Colour depths tried in turn when a frame holds more distinct colours than a
-// palette can carry. Each entry drops one bit from one channel of RGB565.
+/**
+ * Colour depths tried in turn when a frame holds more distinct colours than a
+ * palette can carry. Each entry drops one bit from one channel of RGB565.
+ */
 typedef struct {
     uint8_t red_bits;
     uint8_t green_bits;
@@ -76,8 +78,10 @@ static void bits_end(bit_writer_t *writer) {
 typedef struct {
     bit_writer_t bits;
 
-    // Child code for each (prefix code, next byte) pair; 0 marks none, since
-    // code 0 is a literal and can never be a child.
+    /**
+     * Child code for each (prefix code, next byte) pair; 0 marks none, since
+     * code 0 is a literal and can never be a child.
+     */
     uint16_t *children;
     int minimum_code_size;
     int code_size;
@@ -120,8 +124,10 @@ static bool lzw_encode(FILE *file, const uint8_t *indices, size_t count, int min
 
         bits_put(&lzw.bits, (uint32_t)prefix, lzw.code_size);
 
-        // A decoder adds the same entry one code later than this, so the code
-        // width grows when the entry just added reaches the current limit.
+        /*
+         * A decoder adds the same entry one code later than this, so the code
+         * width grows when the entry just added reaches the current limit.
+         */
         const int added = lzw.next_code++;
         lzw.children[prefix * 256 + next] = (uint16_t)added;
         if (added == (1 << lzw.code_size) && lzw.code_size < 12) {
@@ -150,8 +156,10 @@ static void expand_rgb565(uint16_t pixel, uint8_t *rgb) {
     rgb[2] = (uint8_t)((pixel & 0x1Fu) * 255u / 31u);
 }
 
-// Writes the pending frame as one image: a graphic control block, the changed
-// bounding box with a local palette, and the LZW-coded indices.
+/**
+ * Writes the pending frame as one image: a graphic control block, the changed
+ * bounding box with a local palette, and the LZW-coded indices.
+ */
 static bool flush_pending(gif_writer_t *writer) {
     const int width = writer->width;
     const int height = writer->height;
@@ -187,8 +195,10 @@ static bool flush_pending(gif_writer_t *writer) {
             }
         }
 
-        // A frame equal to the shown one still needs an image to carry its
-        // delay; a single transparent pixel does that.
+        /*
+         * A frame equal to the shown one still needs an image to carry its
+         * delay; a single transparent pixel does that.
+         */
         if (right < 0) {
             left = 0;
             top = 0;
@@ -249,8 +259,10 @@ static bool flush_pending(gif_writer_t *writer) {
     }
     free(index_of_colour);
 
-    // The transparent index sits just past the colours, so the table holds
-    // colour_count + 1 entries when it is in use.
+    /*
+     * The transparent index sits just past the colours, so the table holds
+     * colour_count + 1 entries when it is in use.
+     */
     const int transparent_index = colour_count;
     if (has_transparent) {
         for (size_t at = 0; at < box_pixels; at++) {
@@ -268,8 +280,10 @@ static bool flush_pending(gif_writer_t *writer) {
     const int minimum_code_size = table_bits < 2 ? 2 : table_bits;
 
     FILE *file = writer->file;
-    // Graphic control extension: leave the previous image in place, so the
-    // transparent pixels show through to it.
+    /*
+     * Graphic control extension: leave the previous image in place, so the
+     * transparent pixels show through to it.
+     */
     fputc(0x21, file);
     fputc(0xF9, file);
     fputc(0x04, file);
@@ -322,8 +336,10 @@ bool gif_begin(gif_writer_t *writer, const char *path, int width, int height) {
     write_u16(file, (unsigned)width);
     write_u16(file, (unsigned)height);
 
-    // A two-entry global colour table satisfies decoders that expect one;
-    // every image carries its own table.
+    /*
+     * A two-entry global colour table satisfies decoders that expect one;
+     * every image carries its own table.
+     */
     fputc(0x80, file);
     fputc(0x00, file);
     fputc(0x00, file);

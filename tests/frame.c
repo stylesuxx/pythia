@@ -1,6 +1,8 @@
-// The frame module's promises: marks accumulate into one run of rows, a frame
-// fills exactly those rows before drawing, presents exactly those rows and
-// forgets them, rows beyond the canvas are dropped, and frames are paced.
+/*
+ * The frame module's promises: marks accumulate into one run of rows, a frame
+ * fills exactly those rows before drawing, presents exactly those rows and
+ * forgets them, rows beyond the canvas are dropped, and frames are paced.
+ */
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -41,8 +43,10 @@ static bool same(frame_rect_t a, int top, int height) {
     return a.top == top && a.height == height;
 }
 
-// Rows [top, top + height) hold the background and every other row is
-// untouched.
+/**
+ * Rows [top, top + height) hold the background and every other row is
+ * untouched.
+ */
 static bool filled_exactly(int top, int height) {
     const uint16_t *pixels = canvas_pixels();
     for (int row = 0; row < CANVAS_HEIGHT; row++) {

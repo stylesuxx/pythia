@@ -7,9 +7,11 @@
 extern "C" {
 #endif
 
-// The power-on sequence. Runs once, ahead of the die list, and uses
-// the active theme's palette with its own monospace faces.
-// The strings the sequence draws, so a test can hold the boot faces to them.
+/**
+ * The power-on sequence. Runs once, ahead of the die list, and uses
+ * the active theme's palette with its own monospace faces.
+ * The strings the sequence draws, so a test can hold the boot faces to them.
+ */
 extern const char BOOT_WORDMARK[];
 extern const char BOOT_MANUFACTURER[];
 
@@ -18,8 +20,10 @@ extern const char BOOT_SCRAMBLE_CHARACTERS[];
 
 void boot_begin(uint32_t now);
 
-// Drives the haptic beats. Call every loop, not once per rendered frame, so a
-// dropped frame does not move a tick.
+/**
+ * Drives the haptic beats. Call every loop, not once per rendered frame, so a
+ * dropped frame does not move a tick.
+ */
 void boot_tick(uint32_t now);
 
 // Draws the whole scene over an already filled background.

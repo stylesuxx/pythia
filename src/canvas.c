@@ -169,8 +169,10 @@ void canvas_arc_gradient(float centre_x, float centre_y, float radius, float fro
         const float inner_half =
             (fabsf(offset_y) < inner) ? sqrtf(inner * inner - offset_y * offset_y) : 0.0f;
 
-        // Two chords where the row crosses the hole, one where it runs along
-        // the top or bottom of the ring.
+        /*
+         * Two chords where the row crosses the hole, one where it runs along
+         * the top or bottom of the ring.
+         */
         const int chord_count = inner_half > 0.0f ? 2 : 1;
         for (int chord = 0; chord < chord_count; chord++) {
             const float chord_from = chord == 0 ? centre_x - outer_half : centre_x + inner_half;
@@ -315,17 +317,21 @@ void canvas_glyph_scaled(const font_t *font, uint32_t codepoint, float centre_x,
         return;
     }
 
-    // Supersampling only earns its keep when the glyph is being minified, and
-    // only along the axis doing the minifying. A face turned square on is the
-    // largest destination and needs none at all, while a face turned away is a
-    // few pixels across and can afford them, so the work stays roughly flat.
+    /*
+     * Supersampling only earns its keep when the glyph is being minified, and
+     * only along the axis doing the minifying. A face turned square on is the
+     * largest destination and needs none at all, while a face turned away is a
+     * few pixels across and can afford them, so the work stays roughly flat.
+     */
     const float squeeze = scale_x < scale_y ? scale_x : scale_y;
     const int subsamples = squeeze >= 0.7f ? 1 : (squeeze >= 0.35f ? 2 : 3);
     const bool along_x = scale_x <= scale_y;
 
-    // Centred on the ink rather than the advance, so a symbol with uneven side
-    // bearings still sits in the middle of what it is struck into. Only the
-    // destination is scaled; the source is walked unscaled.
+    /*
+     * Centred on the ink rather than the advance, so a symbol with uneven side
+     * bearings still sits in the middle of what it is struck into. Only the
+     * destination is scaled; the source is walked unscaled.
+     */
     const float glyph_left = (float)glyph->width * -0.5f;
     const float glyph_top = -(float)glyph->top;
 

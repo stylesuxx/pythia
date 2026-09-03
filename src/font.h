@@ -6,8 +6,10 @@
 extern "C" {
 #endif
 
-// One rasterized glyph. Coverage rows are packed two pixels per byte, high
-// nibble first, each row padded to a whole byte.
+/**
+ * One rasterized glyph. Coverage rows are packed two pixels per byte, high
+ * nibble first, each row padded to a whole byte.
+ */
 typedef struct {
     uint32_t codepoint;
     uint16_t width;

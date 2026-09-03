@@ -6,12 +6,14 @@
 extern "C" {
 #endif
 
-// Tears rows sideways in slices
-//
-// The flicker the boot wordmark suffers once it
-// has settled. Each step picks a fresh set of slices, so the tear flickers
-// rather than slides, and the same seed and step always pick the same ones,
-// so the preview and the device agree.
+/**
+ * Tears rows sideways in slices
+ *
+ * The flicker the boot wordmark suffers once it
+ * has settled. Each step picks a fresh set of slices, so the tear flickers
+ * rather than slides, and the same seed and step always pick the same ones,
+ * so the preview and the device agree.
+ */
 typedef struct {
     int top;           // first row a slice may start on
     int span;          // rows below top a slice may start within
