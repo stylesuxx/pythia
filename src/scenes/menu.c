@@ -20,7 +20,7 @@ void menu_draw(uint8_t selected, uint8_t alpha) {
 
     const int width = font_text_width(theme->label_font, die->name);
     canvas_text(theme->label_font, die->name, (CANVAS_WIDTH - width) / 2, CHOICE_BASELINE,
-                theme->label, alpha);
+                theme->list.name, alpha);
 
     // One tick per die around the rim, the current one long and bright.
     const float centre = CANVAS_WIDTH / 2.0f;
@@ -37,7 +37,7 @@ void menu_draw(uint8_t selected, uint8_t alpha) {
             centre + sine * (RING_RADIUS - length),
             centre + cosine * RING_RADIUS, centre + sine * RING_RADIUS,
             active ? RING_ACTIVE_WIDTH : RING_TICK_WIDTH,
-            active ? theme->ring_active : theme->ring,
+            active ? theme->list.ring_active : theme->list.ring,
             alpha
         );
     }

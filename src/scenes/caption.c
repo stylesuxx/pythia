@@ -15,7 +15,7 @@
 void caption_draw(const char *text, uint8_t alpha) {
     const theme_t *theme = theme_active();
     canvas_text_arc(theme->caption_font, text, CANVAS_WIDTH / 2.0f, CANVAS_HEIGHT / 2.0f,
-                    CAPTION_RADIUS, CAPTION_ANGLE, CAPTION_TRACKING, theme->label, alpha);
+                    CAPTION_RADIUS, CAPTION_ANGLE, CAPTION_TRACKING, theme->caption.text, alpha);
 }
 
 frame_rect_t caption_get_rect(void) {

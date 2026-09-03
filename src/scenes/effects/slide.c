@@ -47,7 +47,7 @@ static void slide_draw(const effect_subject_t *subject, uint32_t elapsed, uint8_
     }
 
     canvas_text(subject->font, subject->text, (int)lroundf(x), subject->baseline,
-                theme_active()->answer, alpha);
+                theme_active()->numbers.text, alpha);
 }
 
 const effect_t EFFECT_SLIDE = {

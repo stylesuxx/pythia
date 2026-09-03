@@ -341,7 +341,7 @@ void coin_draw(uint32_t now, uint8_t alpha) {
     const float half_height = COIN_RADIUS * fabsf(squash);
     const float offset_y = COIN_HALF_THICKNESS * sinf(turn) * (squash >= 0.0f ? 1.0f : -1.0f);
 
-    const uint16_t face_color = theme->answer;
+    const uint16_t face_color = theme->coin.face;
     const uint16_t rim_color = shade(face_color, 0.55f);
     const uint16_t groove_color = shade(face_color, 0.3f);
     const float centre_x = CANVAS_WIDTH / 2.0f;

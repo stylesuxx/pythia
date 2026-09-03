@@ -198,14 +198,14 @@ void reveal_draw(uint32_t now, uint8_t alpha) {
         answer_x = mix(answer_centre_x, answer_final_x, progress);
     }
     canvas_text(answer_font, current_roll.answer, (int)lroundf(answer_x), ANSWER_BASELINE,
-                theme->answer, alpha);
+                theme->oracle.answer, alpha);
 
     if (current_roll.modifier != NULL && elapsed >= BEAT_TWO_MS) {
         const float progress =
             ease_out_back(clamp_unit((float)(elapsed - BEAT_TWO_MS) / (float)MODIFIER_SLIDE_MS));
         const float modifier_x = mix(modifier_entry_x, modifier_final_x, progress);
         canvas_text(theme->label_font, current_roll.modifier, (int)lroundf(modifier_x),
-                    ANSWER_BASELINE, theme->modifier, alpha);
+                    ANSWER_BASELINE, theme->oracle.modifier, alpha);
     }
 }
 

@@ -105,9 +105,13 @@ make roll DIE=D100 FIRST=42 SECOND=87 EFFECT=slide
 
 Plugged into a computer, the terminal is also a 10 MB USB drive named **PYTHIA**. On it is `theme.json`, the look currently in use, written by the terminal itself so there is always something to edit from. The built-in look is [`data/theme.json`](data/theme.json) in this repository, and the file on the drive starts as a copy of it. Change its colours to recolour the display.
 
-Every colour takes `#RRGGBB`. Every key is optional; the ones you leave out keep the built-in values. Save the file and **eject the drive**. The terminal reads it at once, runs its self-test in the new colours, and the drive reappears for the next edit. A file it cannot accept is refused with the reason written into `README.txt` on the drive, and the previous look stays. Delete `theme.json` and eject to return to the built-in look; the terminal writes the file again from it.
+Every colour takes `#RRGGBB`. The `colors` section holds the general roles and each screen has a section of its own. A screen's key wins over the role it follows, so the dice numbers, the oracle's answer and the coin can each have a colour of their own or all follow `primary`. Every key is optional; the ones you leave out follow their role, and a role you leave out keeps the built-in value.
 
-Eject before unplugging. A file the computer has not finished writing is refused rather than half applied.
+Save the file and **eject the drive**. The terminal reads it at once, runs its self-test in the new colours, and the drive reappears for the next edit.
+
+`STATUS.txt` on the drive says what was applied; a file the terminal cannot accept is refused with the reason there, and the previous look stays. Delete `theme.json` and eject to return to the built-in look; the terminal writes the file again from it.
+
+> Eject before unplugging. A file the computer has not finished writing is refused rather than half applied.
 
 ## 9. Notices
 

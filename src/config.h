@@ -15,15 +15,41 @@ extern "C" {
  * than a silently kept default.
  */
 
+/**
+ * Every colour theme.json can name. The general roles come first; each
+ * screen's section follows, and a section key left out takes the general
+ * role CONFIG_COLORS names as its fallback.
+ */
 typedef enum {
-    CONFIG_COLOR_BACKGROUND,
-    CONFIG_COLOR_ANSWER,
-    CONFIG_COLOR_MODIFIER,
-    CONFIG_COLOR_LABEL,
-    CONFIG_COLOR_RING,
-    CONFIG_COLOR_RING_ACTIVE,
+    CONFIG_BACKGROUND,
+    CONFIG_PRIMARY,
+    CONFIG_SECONDARY,
+    CONFIG_MUTED,
+    CONFIG_RING,
+    CONFIG_RING_ACTIVE,
+    CONFIG_BOOT_WORDMARK,
+    CONFIG_BOOT_SCRAMBLE,
+    CONFIG_BOOT_CAPTION,
+    CONFIG_BOOT_RING,
+    CONFIG_BOOT_RING_ACTIVE,
+    CONFIG_LIST_NAME,
+    CONFIG_LIST_RING,
+    CONFIG_LIST_RING_ACTIVE,
+    CONFIG_CAPTION_TEXT,
+    CONFIG_NUMBERS_TEXT,
+    CONFIG_ORACLE_ANSWER,
+    CONFIG_ORACLE_MODIFIER,
+    CONFIG_COIN_FACE,
     CONFIG_COLOR_COUNT,
 } config_color_t;
+
+typedef struct {
+    const char *section; // the object the key sits in
+    const char *key;
+    config_color_t fallback; // a general role is its own fallback
+} config_color_spec_t;
+
+extern const config_color_spec_t CONFIG_COLORS[CONFIG_COLOR_COUNT];
 
 #define CONFIG_NAME_CAPACITY 24
 #define CONFIG_ERROR_CAPACITY 96
@@ -38,9 +64,12 @@ typedef struct {
     uint16_t color[CONFIG_COLOR_COUNT];
 } config_theme_t;
 
+/**
+ * Parses theme.json. text need not be NUL-terminated. On refusal returns
+ * false with error filled, as "key.path: reason".
+ */
 bool config_parse_theme(const char *text, size_t length, config_theme_t *theme, char *error,
                         size_t error_capacity);
-
 
 #ifdef __cplusplus
 }

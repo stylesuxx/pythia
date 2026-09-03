@@ -50,7 +50,7 @@ static mode_config_t config;
 
 /*
  * Takes the drive from the host, applies the files on it and hands it back.
- * A refused file is reported on the port and in the README on the drive.
+ * A refused file is reported on the port and in STATUS.txt on the drive.
  */
 static void apply_user_files(void) {
     if (!drive_open()) {

@@ -9,12 +9,30 @@
 #define JSMN_STRICT
 #include "jsmn.h"
 
-// theme.json is a few dozen tokens; a file needing more is refused as such.
-#define TOKEN_CAPACITY 64
-#define KEY_PATH_CAPACITY 48
+// theme.json in full is under a hundred tokens; a file needing more is refused.
+#define TOKEN_CAPACITY 128
+#define KEY_PATH_CAPACITY 64
 
-static const char *const COLOR_KEYS[CONFIG_COLOR_COUNT] = {
-    "background", "answer", "modifier", "label", "ring", "ring_active",
+const config_color_spec_t CONFIG_COLORS[CONFIG_COLOR_COUNT] = {
+    [CONFIG_BACKGROUND] = {"colors", "background", CONFIG_BACKGROUND},
+    [CONFIG_PRIMARY] = {"colors", "primary", CONFIG_PRIMARY},
+    [CONFIG_SECONDARY] = {"colors", "secondary", CONFIG_SECONDARY},
+    [CONFIG_MUTED] = {"colors", "muted", CONFIG_MUTED},
+    [CONFIG_RING] = {"colors", "ring", CONFIG_RING},
+    [CONFIG_RING_ACTIVE] = {"colors", "ring_active", CONFIG_RING_ACTIVE},
+    [CONFIG_BOOT_WORDMARK] = {"boot", "wordmark", CONFIG_PRIMARY},
+    [CONFIG_BOOT_SCRAMBLE] = {"boot", "scramble", CONFIG_MUTED},
+    [CONFIG_BOOT_CAPTION] = {"boot", "caption", CONFIG_MUTED},
+    [CONFIG_BOOT_RING] = {"boot", "ring", CONFIG_RING},
+    [CONFIG_BOOT_RING_ACTIVE] = {"boot", "ring_active", CONFIG_RING_ACTIVE},
+    [CONFIG_LIST_NAME] = {"list", "name", CONFIG_MUTED},
+    [CONFIG_LIST_RING] = {"list", "ring", CONFIG_RING},
+    [CONFIG_LIST_RING_ACTIVE] = {"list", "ring_active", CONFIG_RING_ACTIVE},
+    [CONFIG_CAPTION_TEXT] = {"caption", "text", CONFIG_MUTED},
+    [CONFIG_NUMBERS_TEXT] = {"numbers", "text", CONFIG_PRIMARY},
+    [CONFIG_ORACLE_ANSWER] = {"oracle", "answer", CONFIG_PRIMARY},
+    [CONFIG_ORACLE_MODIFIER] = {"oracle", "modifier", CONFIG_SECONDARY},
+    [CONFIG_COIN_FACE] = {"coin", "face", CONFIG_PRIMARY},
 };
 
 typedef struct {
@@ -31,6 +49,14 @@ static bool refuse(const parser_t *parser, const char *path, const char *reason)
 
 static size_t token_length(const jsmntok_t *token) {
     return (size_t)(token->end - token->start);
+}
+
+// Characters of a key worth quoting in a message; a longer key is cut.
+#define KEY_QUOTE_LIMIT 24
+
+static int quoted_length(const jsmntok_t *token) {
+    const size_t length = token_length(token);
+    return (int)(length < KEY_QUOTE_LIMIT ? length : KEY_QUOTE_LIMIT);
 }
 
 static bool token_is(const parser_t *parser, const jsmntok_t *token, const char *text) {
@@ -87,10 +113,22 @@ static bool parse_color(const parser_t *parser, const jsmntok_t *token, uint16_t
     return true;
 }
 
-static bool parse_colors(const parser_t *parser, int index, config_theme_t *theme) {
+static bool is_section(const char *name) {
+    for (int which = 0; which < CONFIG_COLOR_COUNT; which++) {
+        if (strcmp(CONFIG_COLORS[which].section, name) == 0) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+// One section object: every key must be a colour the table lists under it.
+static bool parse_section(const parser_t *parser, const char *section, int index,
+                          config_theme_t *theme) {
     const jsmntok_t *object = &parser->tokens[index];
     if (object->type != JSMN_OBJECT) {
-        return refuse(parser, "colors", "expected an object");
+        return refuse(parser, section, "expected an object");
     }
 
     index++;
@@ -98,11 +136,13 @@ static bool parse_colors(const parser_t *parser, int index, config_theme_t *them
         const jsmntok_t *key = &parser->tokens[index];
         const jsmntok_t *value = &parser->tokens[index + 1];
         char path[KEY_PATH_CAPACITY];
-        snprintf(path, sizeof(path), "colors.%.*s", (int)token_length(key),
+        snprintf(path, sizeof(path), "%.*s.%.*s", KEY_QUOTE_LIMIT, section, quoted_length(key),
                  parser->text + key->start);
 
         int which = 0;
-        while (which < CONFIG_COLOR_COUNT && !token_is(parser, key, COLOR_KEYS[which])) {
+        while (which < CONFIG_COLOR_COUNT &&
+               !(strcmp(CONFIG_COLORS[which].section, section) == 0 &&
+                 token_is(parser, key, CONFIG_COLORS[which].key))) {
             which++;
         }
 
@@ -160,18 +200,18 @@ bool config_parse_theme(const char *text, size_t length, config_theme_t *theme, 
     for (int entry = 0; entry < tokens[0].size; entry++) {
         const jsmntok_t *key = &tokens[index];
         const jsmntok_t *value = &tokens[index + 1];
+        char path[KEY_PATH_CAPACITY];
+        snprintf(path, sizeof(path), "%.*s", quoted_length(key), text + key->start);
 
         if (token_is(&parser, key, "name")) {
             if (!parse_name(&parser, value, theme)) {
                 return false;
             }
-        } else if (token_is(&parser, key, "colors")) {
-            if (!parse_colors(&parser, index + 1, theme)) {
+        } else if (key->type == JSMN_STRING && is_section(path)) {
+            if (!parse_section(&parser, path, index + 1, theme)) {
                 return false;
             }
         } else {
-            char path[KEY_PATH_CAPACITY];
-            snprintf(path, sizeof(path), "%.*s", (int)token_length(key), text + key->start);
             return refuse(&parser, path, "unknown key");
         }
 

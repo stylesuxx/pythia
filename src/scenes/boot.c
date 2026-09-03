@@ -174,7 +174,7 @@ static void draw_ring(const theme_t *theme, uint32_t elapsed, uint8_t alpha) {
     }
 
     if (closing > 0.0f) {
-        canvas_arc(centre, centre, RING_RADIUS, 0.0f, two_pi, RING_WIDTH, theme->ring,
+        canvas_arc(centre, centre, RING_RADIUS, 0.0f, two_pi, RING_WIDTH, theme->boot.ring,
                    scale_alpha(alpha, closing));
     }
 
@@ -190,7 +190,7 @@ static void draw_ring(const theme_t *theme, uint32_t elapsed, uint8_t alpha) {
     }
 
     canvas_arc_gradient(centre, centre, RING_RADIUS, head - tail, tail, RING_WIDTH,
-                        theme->ring_active, 0, scale_alpha(alpha, comet_alpha));
+                        theme->boot.ring_active, 0, scale_alpha(alpha, comet_alpha));
 }
 
 static void draw_wordmark(const theme_t *theme, uint32_t elapsed, uint8_t alpha) {
@@ -205,11 +205,11 @@ static void draw_wordmark(const theme_t *theme, uint32_t elapsed, uint8_t alpha)
 
         if (settled) {
             glyph[0] = BOOT_WORDMARK[position];
-            canvas_text(&font_boot_wordmark, glyph, pen_x, WORDMARK_BASELINE, theme->answer,
+            canvas_text(&font_boot_wordmark, glyph, pen_x, WORDMARK_BASELINE, theme->boot.wordmark,
                         alpha);
         } else if (reached && elapsed >= TYPE_START_MS - TYPE_STEP_MS) {
             glyph[0] = BOOT_SCRAMBLE_CHARACTERS[glitch_hash(position, scramble_step) % SCRAMBLE_COUNT];
-            canvas_text(&font_boot_wordmark, glyph, pen_x, WORDMARK_BASELINE, theme->label,
+            canvas_text(&font_boot_wordmark, glyph, pen_x, WORDMARK_BASELINE, theme->boot.scramble,
                         alpha);
         }
     }
@@ -246,7 +246,7 @@ static void draw_rule(const theme_t *theme, uint32_t elapsed, uint8_t alpha) {
         return;
     }
 
-    canvas_line(from_x, RULE_Y, to_x, RULE_Y, RULE_WIDTH, theme->ring_active, alpha);
+    canvas_line(from_x, RULE_Y, to_x, RULE_Y, RULE_WIDTH, theme->boot.ring_active, alpha);
 }
 
 static void draw_caption(const theme_t *theme, uint32_t elapsed, uint8_t alpha) {
@@ -256,7 +256,7 @@ static void draw_caption(const theme_t *theme, uint32_t elapsed, uint8_t alpha) 
 
     const float progress = clamp_unit((float)(elapsed - CAPTION_START_MS) / (float)CAPTION_MS);
     canvas_text_arc(&font_boot_caption, BOOT_MANUFACTURER, CANVAS_WIDTH / 2.0f, CANVAS_HEIGHT / 2.0f,
-                    CAPTION_RADIUS, CAPTION_ANGLE, CAPTION_TRACKING, theme->label,
+                    CAPTION_RADIUS, CAPTION_ANGLE, CAPTION_TRACKING, theme->boot.caption,
                     scale_alpha(alpha, progress));
 }
 
@@ -272,7 +272,7 @@ static void draw_scanline(const theme_t *theme, uint32_t elapsed, uint8_t alpha)
 
     for (int row = top; row < top + SCAN_BAND_ROWS; row++) {
         for (int column = 0; column < CANVAS_WIDTH; column++) {
-            canvas_blend(column, row, theme->answer, band_alpha);
+            canvas_blend(column, row, theme->boot.wordmark, band_alpha);
         }
     }
 }

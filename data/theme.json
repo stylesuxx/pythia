@@ -2,10 +2,35 @@
   "name": "midnight",
   "colors": {
     "background": "#080512",
-    "answer": "#FFCE6E",
-    "modifier": "#FFECBE",
-    "label": "#9276D6",
+    "primary": "#FFCE6E",
+    "secondary": "#FFECBE",
+    "muted": "#9276D6",
     "ring": "#342A58",
     "ring_active": "#FFCE6E"
+  },
+  "boot": {
+    "wordmark": "#FFCE6E",
+    "scramble": "#9276D6",
+    "caption": "#9276D6",
+    "ring": "#342A58",
+    "ring_active": "#FFCE6E"
+  },
+  "list": {
+    "name": "#9276D6",
+    "ring": "#342A58",
+    "ring_active": "#FFCE6E"
+  },
+  "caption": {
+    "text": "#9276D6"
+  },
+  "numbers": {
+    "text": "#FFCE6E"
+  },
+  "oracle": {
+    "answer": "#FFCE6E",
+    "modifier": "#FFECBE"
+  },
+  "coin": {
+    "face": "#FFCE6E"
   }
 }

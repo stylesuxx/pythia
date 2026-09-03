@@ -87,7 +87,7 @@ static void tear_tick(uint32_t elapsed) {
 
 static void tear_draw(const effect_subject_t *subject, uint32_t elapsed, uint8_t alpha) {
     const theme_t *theme = theme_active();
-    canvas_text(subject->font, subject->text, subject->left, subject->baseline, theme->answer,
+    canvas_text(subject->font, subject->text, subject->left, subject->baseline, theme->numbers.text,
                 alpha);
 
     if (elapsed < TEAR_MS) {

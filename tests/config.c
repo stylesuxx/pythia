@@ -1,9 +1,10 @@
 /*
- * The user's theme file, parsed on the host. A valid palette lands on the
- * active theme, a partial one keeps the built-in values it does not name, and
- * every kind of mistake is refused with the key named and nothing applied.
- * The files port is scripted here, so the whole path from bytes on the drive
- * to the palette the canvas draws with runs without a device.
+ * The user's theme file, parsed on the host. A full file lands on every
+ * screen's palette, a partial one keeps what it does not name, a section key
+ * left out follows the file's general role, and every kind of mistake is
+ * refused with the key named and nothing applied. The files port is scripted
+ * here, so the whole path from bytes on the drive to the palette the canvas
+ * draws with runs without a device.
  */
 
 #include <stdbool.h>
@@ -65,45 +66,103 @@ static bool parse(const char *text, config_theme_t *theme, char *error) {
     return config_parse_theme(text, strlen(text), theme, error, CONFIG_ERROR_CAPACITY);
 }
 
-static const char FULL[] =
-    "{\n"
-    "  \"name\": \"parchment\",\n"
-    "  \"colors\": {\n"
-    "    \"background\": \"#F2E6C9\", \"answer\": \"#2B1D0E\", \"modifier\": \"#5A3E1B\",\n"
-    "    \"label\": \"#7A5B2E\", \"ring\": \"#C9B58A\", \"ring_active\": \"#2b1d0e\"\n"
-    "  }\n"
-    "}\n";
-
-static void check_full_palette_parses(void) {
-    config_theme_t theme;
-    char error[CONFIG_ERROR_CAPACITY] = "";
-    EXPECT(parse(FULL, &theme, error), "the full palette was refused: %s", error);
-    EXPECT(strcmp(theme.name, "parchment") == 0, "name parsed as %s", theme.name);
-    for (int which = 0; which < CONFIG_COLOR_COUNT; which++) {
-        EXPECT(theme.has_color[which], "colour %d was not set", which);
-    }
-
-    EXPECT(theme.color[CONFIG_COLOR_BACKGROUND] == CANVAS_RGB(0xF2, 0xE6, 0xC9),
-           "background quantised to %04x", theme.color[CONFIG_COLOR_BACKGROUND]);
-    EXPECT(theme.color[CONFIG_COLOR_RING_ACTIVE] == CANVAS_RGB(0x2B, 0x1D, 0x0E),
-           "lower-case hex was not read");
+static bool apply(const char *text, char *error) {
+    serve(text);
+    return user_files_apply(error, CONFIG_ERROR_CAPACITY);
 }
 
-static void check_partial_palette_keeps_the_rest(void) {
-    config_theme_t theme;
+#define WHITE CANVAS_RGB(0xFF, 0xFF, 0xFF)
+#define RED CANVAS_RGB(0xFF, 0x00, 0x00)
+
+// The built-in file is the one source of the palette, so it must name every
+// colour of every section and parse in full; a device never falls back from it.
+static void check_built_in_file_is_complete(void) {
+    config_theme_t parsed;
     char error[CONFIG_ERROR_CAPACITY] = "";
-    EXPECT(parse("{\"colors\": {\"answer\": \"#FFFFFF\"}}", &theme, error),
-           "a one-colour palette was refused: %s", error);
-    EXPECT(theme.has_color[CONFIG_COLOR_ANSWER], "the named colour was not set");
-    EXPECT(!theme.has_color[CONFIG_COLOR_BACKGROUND], "an unnamed colour was set");
-    EXPECT(theme.name[0] == '\0', "a missing name was filled in as %s", theme.name);
+    EXPECT(parse(theme_builtin_text(), &parsed, error), "data/theme.json was refused: %s", error);
+    EXPECT(parsed.name[0] != '\0', "data/theme.json has no name");
+    for (int which = 0; which < CONFIG_COLOR_COUNT; which++) {
+        EXPECT(parsed.has_color[which], "data/theme.json leaves %s.%s unset",
+               CONFIG_COLORS[which].section, CONFIG_COLORS[which].key);
+    }
 
     theme_select(0);
-    const uint16_t built_in_background = theme_active()->background;
-    theme_apply_file(&theme);
-    EXPECT(theme_active()->answer == CANVAS_RGB(0xFF, 0xFF, 0xFF), "the named colour was not applied");
-    EXPECT(theme_active()->background == built_in_background, "an unnamed colour was changed");
-    theme_reset();
+    const theme_t *theme = theme_active();
+    EXPECT(theme->background == parsed.color[CONFIG_BACKGROUND], "background is not the file's");
+    EXPECT(theme->boot.wordmark == parsed.color[CONFIG_BOOT_WORDMARK], "boot.wordmark is not the file's");
+    EXPECT(theme->list.ring == parsed.color[CONFIG_LIST_RING], "list.ring is not the file's");
+    EXPECT(theme->caption.text == parsed.color[CONFIG_CAPTION_TEXT], "caption.text is not the file's");
+    EXPECT(theme->numbers.text == parsed.color[CONFIG_NUMBERS_TEXT], "numbers.text is not the file's");
+    EXPECT(theme->oracle.modifier == parsed.color[CONFIG_ORACLE_MODIFIER],
+           "oracle.modifier is not the file's");
+    EXPECT(theme->coin.face == parsed.color[CONFIG_COIN_FACE], "coin.face is not the file's");
+    EXPECT(strcmp(theme->name, parsed.name) == 0, "the selected theme is named %s", theme->name);
+}
+
+// Every general role is its own fallback and every section key falls back to
+// a general role, so a file of general roles alone reaches every screen.
+static void check_fallbacks_point_at_general_roles(void) {
+    for (int which = 0; which < CONFIG_COLOR_COUNT; which++) {
+        const config_color_spec_t *spec = &CONFIG_COLORS[which];
+        const bool general = strcmp(spec->section, "colors") == 0;
+        EXPECT(general == ((int)spec->fallback == which), "%s.%s has the wrong kind of fallback",
+               spec->section, spec->key);
+        EXPECT(strcmp(CONFIG_COLORS[spec->fallback].section, "colors") == 0,
+               "%s.%s falls back to something that is not a general role", spec->section, spec->key);
+    }
+}
+
+static void check_a_section_key_is_parsed(void) {
+    config_theme_t theme;
+    char error[CONFIG_ERROR_CAPACITY] = "";
+    EXPECT(parse("{\"coin\": {\"face\": \"#FFFFFF\"}, \"oracle\": {\"answer\": \"#ff0000\"}}",
+                 &theme, error),
+           "section keys were refused: %s", error);
+    EXPECT(theme.has_color[CONFIG_COIN_FACE] && theme.color[CONFIG_COIN_FACE] == WHITE,
+           "coin.face was not read");
+    EXPECT(theme.has_color[CONFIG_ORACLE_ANSWER] && theme.color[CONFIG_ORACLE_ANSWER] == RED,
+           "lower-case hex was not read");
+    EXPECT(!theme.has_color[CONFIG_NUMBERS_TEXT], "an unnamed key was set");
+    EXPECT(theme.name[0] == '\0', "a missing name was filled in as %s", theme.name);
+}
+
+static void check_general_roles_reach_the_screens(void) {
+    char error[CONFIG_ERROR_CAPACITY] = "";
+    theme_select(0);
+    const uint16_t built_in_modifier = theme_active()->oracle.modifier;
+    const uint16_t built_in_ring = theme_active()->list.ring;
+
+    EXPECT(apply("{\"colors\": {\"primary\": \"#FFFFFF\"}}", error), "refused: %s", error);
+    const theme_t *theme = theme_active();
+    EXPECT(theme->numbers.text == WHITE, "numbers.text did not follow primary");
+    EXPECT(theme->oracle.answer == WHITE, "oracle.answer did not follow primary");
+    EXPECT(theme->coin.face == WHITE, "coin.face did not follow primary");
+    EXPECT(theme->boot.wordmark == WHITE, "boot.wordmark did not follow primary");
+    EXPECT(theme->oracle.modifier == built_in_modifier, "oracle.modifier moved with primary");
+    EXPECT(theme->list.ring == built_in_ring, "list.ring moved with primary");
+}
+
+static void check_a_section_key_wins_over_its_role(void) {
+    char error[CONFIG_ERROR_CAPACITY] = "";
+    theme_select(0);
+    EXPECT(apply("{\"colors\": {\"primary\": \"#FFFFFF\"}, \"numbers\": {\"text\": \"#FF0000\"}}",
+                 error),
+           "refused: %s", error);
+    EXPECT(theme_active()->numbers.text == RED, "numbers.text lost to primary");
+    EXPECT(theme_active()->oracle.answer == WHITE, "oracle.answer did not follow primary");
+}
+
+static void check_a_section_key_alone_keeps_the_rest(void) {
+    char error[CONFIG_ERROR_CAPACITY] = "";
+    theme_select(0);
+    const theme_t before = *theme_active();
+    EXPECT(apply("{\"numbers\": {\"text\": \"#FF0000\"}}", error), "refused: %s", error);
+    const theme_t *theme = theme_active();
+    EXPECT(theme->numbers.text == RED, "numbers.text was not applied");
+    EXPECT(theme->oracle.answer == before.oracle.answer, "oracle.answer changed");
+    EXPECT(theme->coin.face == before.coin.face, "coin.face changed");
+    EXPECT(theme->background == before.background, "background changed");
+    EXPECT(strcmp(theme->name, before.name) == 0, "the name changed to %s", theme->name);
 }
 
 static void expect_refused(const char *text, const char *expected_error) {
@@ -117,85 +176,65 @@ static void expect_refused(const char *text, const char *expected_error) {
 
 static void check_mistakes_are_named(void) {
     expect_refused("{\"colors\": {\"ring_actve\": \"#000000\"}}", "colors.ring_actve: unknown key");
+    expect_refused("{\"colors\": {\"answer\": \"#000000\"}}", "colors.answer: unknown key");
+    expect_refused("{\"boot\": {\"wordmrk\": \"#000000\"}}", "boot.wordmrk: unknown key");
+    expect_refused("{\"numbers\": {\"face\": \"#000000\"}}", "numbers.face: unknown key");
     expect_refused("{\"colours\": {}}", "colours: unknown key");
-    expect_refused("{\"colors\": {\"answer\": \"red\"}}", "colors.answer: expected \"#RRGGBB\"");
-    expect_refused("{\"colors\": {\"answer\": \"#12345G\"}}", "colors.answer: expected \"#RRGGBB\"");
-    expect_refused("{\"colors\": {\"answer\": 255}}", "colors.answer: expected \"#RRGGBB\"");
-    expect_refused("{\"colors\": []}", "colors: expected an object");
+    expect_refused("{\"oracle\": {\"answer\": \"red\"}}", "oracle.answer: expected \"#RRGGBB\"");
+    expect_refused("{\"oracle\": {\"answer\": \"#12345G\"}}", "oracle.answer: expected \"#RRGGBB\"");
+    expect_refused("{\"oracle\": {\"answer\": 255}}", "oracle.answer: expected \"#RRGGBB\"");
+    expect_refused("{\"coin\": []}", "coin: expected an object");
     expect_refused("{\"name\": 7}", "name: expected a string");
     expect_refused("{\"name\": \"a name that runs on far too long\"}", "name: longer than 23 characters");
     expect_refused("[1, 2]", "theme: expected an object at the top level");
     expect_refused("{\"name\": \"x\"", "theme: not valid JSON");
     expect_refused("", "theme: expected an object at the top level");
-    expect_refused("{\"colors\": {\"answer\": \"#000000\"}, \"name\": \"ok\", \"extra\": {\"deep\": [1, {\"a\": 2}]}}",
+    expect_refused("{\"coin\": {\"face\": \"#000000\"}, \"name\": \"ok\", \"extra\": {\"deep\": [1, {\"a\": 2}]}}",
                    "extra: unknown key");
-}
-
-static void check_nested_values_are_skipped_whole(void) {
-    // An unknown key after a nested value must be found, which needs the
-    // nested value skipped as one unit.
-    expect_refused("{\"colors\": {\"answer\": \"#000000\", \"ring\": \"#111111\"}, \"after\": 1}",
+    // An unknown key after a nested value is only found if the nested value
+    // was skipped as one unit.
+    expect_refused("{\"list\": {\"name\": \"#000000\", \"ring\": \"#111111\"}, \"after\": 1}",
                    "after: unknown key");
-}
-
-// The built-in file is the one source of the palette, so it must name
-// every colour and parse in full; a device never has to fall back from it.
-static void check_built_in_file_is_complete(void) {
-    config_theme_t parsed;
-    char error[CONFIG_ERROR_CAPACITY] = "";
-    EXPECT(parse(theme_builtin_text(), &parsed, error), "data/theme.json was refused: %s", error);
-    EXPECT(parsed.name[0] != '\0', "data/theme.json has no name");
-    for (int which = 0; which < CONFIG_COLOR_COUNT; which++) {
-        EXPECT(parsed.has_color[which], "data/theme.json leaves colour %d unset", which);
-    }
-
-    theme_select(0);
-    EXPECT(theme_active()->background == parsed.color[CONFIG_COLOR_BACKGROUND],
-           "the selected theme does not carry the built-in file's palette");
-    EXPECT(strcmp(theme_active()->name, parsed.name) == 0, "the selected theme is named %s",
-           theme_active()->name);
 }
 
 static void check_user_files_apply(void) {
     char error[CONFIG_ERROR_CAPACITY] = "";
     theme_select(0);
-
     const theme_t *built_in = theme_active();
     const uint16_t built_in_background = built_in->background;
 
-    serve(NULL);
     written_name[0] = '\0';
-    EXPECT(user_files_apply(error, sizeof(error)), "no file was treated as an error: %s", error);
+    EXPECT(apply(NULL, error), "no file was treated as an error: %s", error);
     EXPECT(theme_active() == built_in, "no file changed the active theme");
     EXPECT(strcmp(written_name, "theme.json") == 0, "no theme.json was written back, got \"%s\"",
            written_name);
     EXPECT(strcmp(written_text, theme_builtin_text()) == 0,
            "the written-back file is not data/theme.json byte for byte");
 
-    serve(FULL);
-    EXPECT(user_files_apply(error, sizeof(error)), "the full palette was refused: %s", error);
+    EXPECT(apply("{\"name\": \"parchment\", \"colors\": {\"background\": \"#F2E6C9\"}}", error),
+           "refused: %s", error);
     EXPECT(theme_active()->background == CANVAS_RGB(0xF2, 0xE6, 0xC9), "the palette was not applied");
     EXPECT(theme_active()->answer_font == THEMES[0].answer_font, "the fonts did not carry over");
     EXPECT(strcmp(theme_active()->name, "parchment") == 0, "the file's name was not taken");
 
-    serve("{\"colors\": {\"answer\": \"#FFFFFF\"}}");
-    EXPECT(user_files_apply(error, sizeof(error)), "the partial palette was refused: %s", error);
+    EXPECT(apply("{\"numbers\": {\"text\": \"#FFFFFF\"}}", error), "refused: %s", error);
     EXPECT(theme_active()->background == built_in_background,
            "a colour the new file omits kept the previous file's value");
 
-    serve("{\"colors\": {\"answer\": \"white\"}}");
-    EXPECT(!user_files_apply(error, sizeof(error)), "a bad file was applied");
-    EXPECT(strcmp(error, "theme.json: colors.answer: expected \"#RRGGBB\"") == 0,
+    EXPECT(!apply("{\"oracle\": {\"answer\": \"white\"}}", error), "a bad file was applied");
+    EXPECT(strcmp(error, "theme.json: oracle.answer: expected \"#RRGGBB\"") == 0,
            "the error did not name the file and key: %s", error);
     EXPECT(theme_active() == built_in, "a refused file left a palette applied");
 }
 
 int main(void) {
-    check_full_palette_parses();
-    check_partial_palette_keeps_the_rest();
-    check_mistakes_are_named();
-    check_nested_values_are_skipped_whole();
     check_built_in_file_is_complete();
+    check_fallbacks_point_at_general_roles();
+    check_a_section_key_is_parsed();
+    check_general_roles_reach_the_screens();
+    check_a_section_key_wins_over_its_role();
+    check_a_section_key_alone_keeps_the_rest();
+    check_mistakes_are_named();
     check_user_files_apply();
 
     if (failures > 0) {

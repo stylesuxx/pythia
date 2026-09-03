@@ -17,23 +17,26 @@
 #define PARTITION_LABEL "ffat"
 #define MOUNT_POINT "/drive"
 #define README_PATH MOUNT_POINT "/README.txt"
+#define STATUS_PATH MOUNT_POINT "/STATUS.txt"
 #define MAX_OPEN_FILES 4
 
 // The largest file worth reading whole; a typeface is a few hundred KB.
 #define MAX_FILE_BYTES (2u * 1024u * 1024u)
 
-static const char README_HEAD[] =
+// Rewritten at every boot, so a firmware update never leaves a stale copy.
+static const char README_TEXT[] =
     "PYTHIA// user files\r\n"
     "\r\n"
     "theme.json on this drive is the look in use. Edit it, then eject the drive:\r\n"
     "the terminal reads it at once and switches over. A file it cannot accept is\r\n"
-    "refused with the reason below and the previous look stays. Delete the file\r\n"
-    "and eject to go back to the built-in look; it is written again from that.\r\n"
+    "refused and the previous look stays; STATUS.txt says what was applied and\r\n"
+    "why a file was refused. Delete theme.json and eject to go back to the\r\n"
+    "built-in look; it is written again from that.\r\n"
     "\r\n"
-    "Every colour takes \"#RRGGBB\" and every key is optional: a colour left out\r\n"
-    "keeps the built-in value.\r\n"
-    "\r\n"
-    "Status: ";
+    "Every colour takes \"#RRGGBB\" and every key is optional. \"colors\" holds the\r\n"
+    "general roles; each screen has a section of its own (boot, list, caption,\r\n"
+    "numbers, oracle, coin) whose keys win over the roles they follow. A key left\r\n"
+    "out follows its role; a role left out keeps the built-in value.\r\n";
 
 static USBMSC msc;
 static const esp_partition_t *partition = NULL;
@@ -184,14 +187,15 @@ static void detach_from_host(void) {
     }
 }
 
-static bool readme_exists(void) {
-    FILE *file = fopen(README_PATH, "r");
+static void write_text(const char *path, const char *text) {
+    FILE *file = fopen(path, "w");
     if (file == NULL) {
-        return false;
+        Serial.printf("drive: could not write %s\n", path);
+        return;
     }
 
+    fputs(text, file);
     fclose(file);
-    return true;
 }
 
 bool drive_begin(void) {
@@ -210,10 +214,7 @@ bool drive_begin(void) {
         return false;
     }
 
-    if (!readme_exists()) {
-        drive_note("no files applied yet");
-    }
-
+    write_text(README_PATH, README_TEXT);
     unmount_filesystem();
 
     if (!attach_to_host()) {
@@ -275,13 +276,12 @@ void drive_note(const char *status) {
         return;
     }
 
-    FILE *file = fopen(README_PATH, "w");
+    FILE *file = fopen(STATUS_PATH, "w");
     if (file == NULL) {
-        Serial.println("drive: could not write the README");
+        Serial.println("drive: could not write STATUS.txt");
         return;
     }
 
-    fputs(README_HEAD, file);
     fputs(status, file);
     fputs("\r\n", file);
     fclose(file);
