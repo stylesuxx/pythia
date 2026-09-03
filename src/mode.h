@@ -31,26 +31,26 @@ typedef struct {
     bool tap;        // a touch began
 } mode_input_t;
 
-/**
- * Starts the boot sequence, armed afterwards on the given die. The screen
- * sleeps after idle_ms without input; see power.h.
- */
-void mode_begin(uint32_t now, uint8_t die, uint32_t idle_ms);
+typedef struct {
+    uint8_t die;       // armed after boot
+    uint32_t idle_ms;  // input-free time before the screen sleeps; see power.h
+    bool coin_enabled; // D2 thrown as a coin rather than printed
+} mode_config_t;
+
+// Starts the boot sequence, armed afterwards on the configured die.
+void mode_begin(uint32_t now, const mode_config_t *config);
 
 /**
  * Advances the machine to now and returns the canvas rows to push, none when
- * nothing changed. Call every loop; frames are paced inside.
+ * nothing changed.
+ *
+ * NOTE: Call every loop; frames are paced inside.
  */
 frame_rect_t mode_step(uint32_t now, mode_input_t input);
 
-ui_mode_t mode_current(void);
-uint8_t mode_selected_die(void);
-
-/**
- * The light level the screen should show, as of the last step. The machine
- * reports it rather than driving the panel, so it stays free of hardware.
- */
-uint8_t mode_backlight(void);
+ui_mode_t mode_get_current(void);
+uint8_t mode_get_selected_die(void);
+uint8_t mode_get_backlight(void);
 
 #ifdef __cplusplus
 }

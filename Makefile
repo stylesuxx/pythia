@@ -26,7 +26,9 @@
 # a warning pass that the PlatformIO build does not.
 
 CC ?= gcc
-CFLAGS ?= -O2 -std=gnu11 -Wall -Wextra
+# -Wswitch-enum keeps a switch over an enum exhaustive even where it has a
+# default, so a new state is a compile error here rather than a fallback.
+CFLAGS ?= -O2 -std=gnu11 -Wall -Wextra -Wswitch-enum
 CPPFLAGS := -Isrc -Itools/host -Itools/host/third_party
 LDLIBS := -lm
 

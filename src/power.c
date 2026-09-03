@@ -64,6 +64,11 @@ static void output(uint32_t now) {
         case POWER_LIGHTING: {
             level = ramp(now, WAKE_FADE_MS, 255.0f);
         } break;
+
+        default: {
+            state = POWER_AWAKE;
+            level = 255;
+        } break;
     }
 }
 
@@ -103,7 +108,7 @@ uint8_t power_step(uint32_t now, bool may_sleep) {
     return level;
 }
 
-uint8_t power_level(void) {
+uint8_t power_get_level(void) {
     return level;
 }
 

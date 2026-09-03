@@ -54,11 +54,8 @@ void settings_set_die_index(uint8_t index) {
     persisted_die = index;
 }
 
+// Whether D2 is thrown as a coin, handed to the machine at begin.
 static bool coin_setting = true;
-
-bool settings_is_coin_enabled(void) {
-    return coin_setting;
-}
 
 /**
  * The interaction rules hold under every effect. The slide is pinned so the
@@ -109,7 +106,7 @@ static bool whole_frame_within(uint32_t now, frame_rect_t rows, uint32_t window)
 static uint32_t step_until(uint32_t from, uint32_t to, ui_mode_t target) {
     for (uint32_t now = from; now <= to; now += STEP_MS) {
         mode_step(now, NOTHING);
-        if (mode_current() == target) {
+        if (mode_get_current() == target) {
             return now;
         }
     }
@@ -120,14 +117,15 @@ static uint32_t step_until(uint32_t from, uint32_t to, ui_mode_t target) {
 // Runs boot with inputs that must be ignored. Returns the instant boot ended.
 static uint32_t boot_on(uint8_t die) {
     reset_recording();
-    mode_begin(0, die, IDLE_SLEEP_MS);
-    EXPECT(mode_current() == MODE_BOOT, "begin does not start in boot");
+    const mode_config_t config = {.die = die, .idle_ms = IDLE_SLEEP_MS, .coin_enabled = coin_setting};
+    mode_begin(0, &config);
+    EXPECT(mode_get_current() == MODE_BOOT, "begin does not start in boot");
 
     uint32_t handover = 0;
     for (uint32_t now = 0; now <= BOOT_LIMIT_MS; now += STEP_MS) {
         const bool poke = now == 1000 || now == 2500;
         const frame_rect_t rows = step(now, poke ? 3 : 0, poke);
-        if (mode_current() != MODE_BOOT) {
+        if (mode_get_current() != MODE_BOOT) {
             handover = now;
             EXPECT(whole_frame_within(now, rows, 16),
                    "boot handover did not present the whole screen within a frame");
@@ -136,10 +134,10 @@ static uint32_t boot_on(uint8_t die) {
     }
 
     EXPECT(handover > 0, "boot never ended");
-    EXPECT(mode_current() == MODE_ARMED, "boot handed over to mode %d, expected armed",
-           (int)mode_current());
-    EXPECT(mode_selected_die() == die, "inputs during boot moved the die to %u",
-           (unsigned)mode_selected_die());
+    EXPECT(mode_get_current() == MODE_ARMED, "boot handed over to mode %d, expected armed",
+           (int)mode_get_current());
+    EXPECT(mode_get_selected_die() == die, "inputs during boot moved the die to %u",
+           (unsigned)mode_get_selected_die());
     EXPECT(persist_calls == 0, "boot persisted the die %d times", persist_calls);
     EXPECT(haptic_counts[HAPTIC_ANSWER] == 0, "a tap during boot rolled");
 
@@ -155,16 +153,16 @@ static void check_turning_browses_the_list(void) {
     reset_recording();
 
     const frame_rect_t rows = step(now, 1, false);
-    EXPECT(mode_current() == MODE_CHOOSING, "a click did not open the list");
-    EXPECT(mode_selected_die() == 4, "one click clockwise landed on %u", (unsigned)mode_selected_die());
+    EXPECT(mode_get_current() == MODE_CHOOSING, "a click did not open the list");
+    EXPECT(mode_get_selected_die() == 4, "one click clockwise landed on %u", (unsigned)mode_get_selected_die());
     EXPECT(is_whole(rows), "opening the list presented %d+%d", rows.top, rows.height);
     EXPECT(haptic_counts[HAPTIC_DETENT] == 1, "a click played %d detent haptics",
            haptic_counts[HAPTIC_DETENT]);
 
     now += 100;
     step(now, -5, false);
-    EXPECT(mode_selected_die() == (uint8_t)((4 + DIE_COUNT - 5) % DIE_COUNT),
-           "five clicks back from 4 landed on %u", (unsigned)mode_selected_die());
+    EXPECT(mode_get_selected_die() == (uint8_t)((4 + DIE_COUNT - 5) % DIE_COUNT),
+           "five clicks back from 4 landed on %u", (unsigned)mode_get_selected_die());
     EXPECT(persist_calls == 0, "browsing persisted the die");
 }
 
@@ -177,7 +175,7 @@ static void check_stillness_arms(void) {
         mode_step(now, NOTHING);
     }
 
-    EXPECT(mode_current() == MODE_CHOOSING, "the list settled before a second of stillness");
+    EXPECT(mode_get_current() == MODE_CHOOSING, "the list settled before a second of stillness");
     EXPECT(persist_calls == 0, "the die was persisted before the choice settled");
 
     const uint32_t armed = step_until(turned + 1000, turned + 1600, MODE_ARMED);
@@ -192,7 +190,7 @@ static void check_stillness_arms(void) {
     }
 
     EXPECT(persist_calls == 1, "staying armed persisted the die again");
-    EXPECT(mode_current() == MODE_ARMED, "the armed screen did not hold");
+    EXPECT(mode_get_current() == MODE_ARMED, "the armed screen did not hold");
 }
 
 static void check_tap_on_the_list_rolls_at_once(void) {
@@ -220,7 +218,7 @@ static void check_tap_when_armed_rolls(void) {
     reset_recording();
 
     const frame_rect_t rows = step(now, 0, true);
-    EXPECT(mode_current() == MODE_RESULT, "a tap when armed did not roll");
+    EXPECT(mode_get_current() == MODE_RESULT, "a tap when armed did not roll");
     EXPECT(is_whole(rows), "the roll presented %d+%d", rows.top, rows.height);
     EXPECT(persist_calls == 0, "rolling persisted the die");
 }
@@ -239,13 +237,13 @@ static void check_tap_on_a_result_rolls_again(void) {
            haptic_counts[HAPTIC_ANSWER]);
 
     step(now, 0, true);
-    EXPECT(mode_current() == MODE_RESULT, "a tap on a result left the result screen");
+    EXPECT(mode_get_current() == MODE_RESULT, "a tap on a result left the result screen");
     for (uint32_t later = now; later <= now + 2000; later += STEP_MS) {
         mode_step(later, NOTHING);
     }
     EXPECT(haptic_counts[HAPTIC_ANSWER] == 2, "two taps played %d answer haptics",
            haptic_counts[HAPTIC_ANSWER]);
-    EXPECT(mode_current() == MODE_RESULT, "the second roll did not stay on the result");
+    EXPECT(mode_get_current() == MODE_RESULT, "the second roll did not stay on the result");
 }
 
 /**
@@ -271,7 +269,7 @@ static void check_the_coin_can_be_switched_off(void) {
 
         const uint32_t now = boot_on(coin_die) + 500;
         step(now, 0, true);
-        EXPECT(mode_current() == MODE_RESULT, "a tap on the coin die did not roll");
+        EXPECT(mode_get_current() == MODE_RESULT, "a tap on the coin die did not roll");
 
         const frame_rect_t wanted = enabled ? thrown : printed;
         bool matched = false;
@@ -287,6 +285,16 @@ static void check_the_coin_can_be_switched_off(void) {
 
         EXPECT(matched, "with the coin %s the roll did not animate stage %d+%d", state,
                wanted.top, wanted.height);
+
+        // The cues belong to what is on stage: the coin has none, the reveal has its answer beat.
+        for (uint32_t later = now; later <= now + 2000; later += STEP_MS) {
+            mode_step(later, NOTHING);
+        }
+
+        const int expected_cues = enabled ? 0 : 1;
+        EXPECT(haptic_counts[HAPTIC_ANSWER] == expected_cues,
+               "with the coin %s the roll played %d answer cues, expected %d", state,
+               haptic_counts[HAPTIC_ANSWER], expected_cues);
     }
 
     coin_setting = true;
@@ -306,7 +314,7 @@ static void check_a_coin_flip_fires_no_cue(void) {
     const uint32_t now = boot_on(coin_die) + 500;
     reset_recording();
     step(now, 0, true);
-    EXPECT(mode_current() == MODE_RESULT, "a tap on the coin die did not roll");
+    EXPECT(mode_get_current() == MODE_RESULT, "a tap on the coin die did not roll");
 
     for (uint32_t later = now + STEP_MS; later <= now + 2000; later += STEP_MS) {
         mode_step(later, NOTHING);
@@ -323,8 +331,8 @@ static void check_turning_leaves_a_result(void) {
     step(now, 0, true);
     step(now + 300, 1, false);
 
-    EXPECT(mode_current() == MODE_CHOOSING, "a click during a result did not open the list");
-    EXPECT(mode_selected_die() == 6, "the click landed on %u", (unsigned)mode_selected_die());
+    EXPECT(mode_get_current() == MODE_CHOOSING, "a click during a result did not open the list");
+    EXPECT(mode_get_selected_die() == 6, "the click landed on %u", (unsigned)mode_get_selected_die());
 }
 
 /**
@@ -379,18 +387,18 @@ static uint32_t sleep_from(uint32_t from) {
 static void check_idle_dims_then_sleeps(void) {
     const uint32_t armed = boot_on(3);
 
-    EXPECT(mode_backlight() == 255, "the armed screen is not at full backlight");
+    EXPECT(mode_get_backlight() == 255, "the armed screen is not at full backlight");
     EXPECT(!power_is_asleep(), "the armed screen is asleep");
 
     // Well before the timeout nothing has moved.
     mode_step(armed + IDLE_SLEEP_MS / 2, NOTHING);
-    EXPECT(mode_backlight() == 255, "the backlight fell after only half the timeout");
+    EXPECT(mode_get_backlight() == 255, "the backlight fell after only half the timeout");
 
     const uint32_t dark = sleep_from(armed);
     EXPECT(dark > 0, "the screen never slept");
     EXPECT(dark > armed + IDLE_SLEEP_MS, "the screen slept before the timeout elapsed");
-    EXPECT(mode_backlight() == 0, "output went off at backlight %u", (unsigned)mode_backlight());
-    EXPECT(mode_current() == MODE_ARMED, "sleeping changed the mode to %d", (int)mode_current());
+    EXPECT(mode_get_backlight() == 0, "output went off at backlight %u", (unsigned)mode_get_backlight());
+    EXPECT(mode_get_current() == MODE_ARMED, "sleeping changed the mode to %d", (int)mode_get_current());
 }
 
 static void check_a_touch_wakes_without_rolling(void) {
@@ -400,13 +408,13 @@ static void check_a_touch_wakes_without_rolling(void) {
 
     step(dark + 100, 0, true);
     EXPECT(!power_is_asleep(), "a touch did not wake the screen");
-    EXPECT(mode_current() == MODE_ARMED, "the waking touch left mode %d, expected armed",
-           (int)mode_current());
+    EXPECT(mode_get_current() == MODE_ARMED, "the waking touch left mode %d, expected armed",
+           (int)mode_get_current());
     EXPECT(haptic_counts[HAPTIC_ANSWER] == 0, "the waking touch rolled");
 
     // It only woke: the next touch is the one that rolls.
     step(dark + 400, 0, true);
-    EXPECT(mode_current() == MODE_RESULT, "the touch after waking did not roll");
+    EXPECT(mode_get_current() == MODE_RESULT, "the touch after waking did not roll");
 }
 
 static void check_a_turn_wakes_and_is_acted_on(void) {
@@ -416,10 +424,10 @@ static void check_a_turn_wakes_and_is_acted_on(void) {
 
     step(dark + 100, 1, false);
     EXPECT(!power_is_asleep(), "a turn did not wake the screen");
-    EXPECT(mode_current() == MODE_CHOOSING, "the waking turn left mode %d, expected the list",
-           (int)mode_current());
-    EXPECT(mode_selected_die() == 4, "the waking turn was swallowed; die is %u",
-           (unsigned)mode_selected_die());
+    EXPECT(mode_get_current() == MODE_CHOOSING, "the waking turn left mode %d, expected the list",
+           (int)mode_get_current());
+    EXPECT(mode_get_selected_die() == 4, "the waking turn was swallowed; die is %u",
+           (unsigned)mode_get_selected_die());
 }
 
 int main(void) {

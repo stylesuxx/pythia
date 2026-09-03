@@ -231,9 +231,10 @@ static int render_menu(gif_writer_t *gif) {
         }
     }
 
-    mode_begin(0, oracle, 120000);
+    const mode_config_t config = {.die = oracle, .idle_ms = 120000, .coin_enabled = true};
+    mode_begin(0, &config);
     uint32_t now = 0;
-    while (mode_current() == MODE_BOOT) {
+    while (mode_get_current() == MODE_BOOT) {
         mode_step(now, nothing);
         now += FRAME_INTERVAL_MS;
     }
@@ -287,9 +288,10 @@ static int render_roll(const char *die_name, const char *first, const char *seco
         return -1;
     }
 
-    mode_begin(0, die, 120000);
+    const mode_config_t config = {.die = die, .idle_ms = 120000, .coin_enabled = true};
+    mode_begin(0, &config);
     uint32_t now = 0;
-    while (mode_current() == MODE_BOOT) {
+    while (mode_get_current() == MODE_BOOT) {
         mode_step(now, nothing);
         now += FRAME_INTERVAL_MS;
     }

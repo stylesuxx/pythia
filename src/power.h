@@ -8,14 +8,18 @@ extern "C" {
 #endif
 
 /*
- * Screen power: the light level over time. After the idle timeout the light
- * fades out and the screen is asleep; any input brings it back with a ramp
- * that continues from whatever level the fade had reached. The machine is
- * free of hardware: the caller applies power_level() to the panel.
+ * Screen power: the light level over time.
+ *
+ * After the idle timeout the light fades out and the screen is asleep. Any
+ * input brings it back with a ramp that continues from whatever level the
+ * fade had reached. The machine is free of hardware: the caller applies
+ * power_get_level() to the panel.
  */
 
-// Starts lit and awake, with the idle timeout in milliseconds.
 void power_begin(uint32_t now, uint32_t idle_ms);
+uint8_t power_get_level(void);
+bool power_is_awake(void);
+bool power_is_asleep(void);
 
 /**
  * Records input at now: resets the idle timer and, if the screen is not
@@ -29,17 +33,6 @@ void power_notice_input(uint32_t now);
  * while may_sleep holds; call every step.
  */
 uint8_t power_step(uint32_t now, bool may_sleep);
-
-uint8_t power_level(void);
-
-// Fully lit with no ramp running: the state in which input is acted on.
-bool power_is_awake(void);
-
-/**
- * Dark with the fade complete: nothing on screen can be seen, so nothing
- * needs drawing.
- */
-bool power_is_asleep(void);
 
 #ifdef __cplusplus
 }

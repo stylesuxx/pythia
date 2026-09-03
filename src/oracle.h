@@ -8,7 +8,7 @@ extern "C" {
 #endif
 
 typedef enum {
-    DIE_NUMERIC, // 1 to sides
+    DIE_NUMERIC, // 1 to n sides
     DIE_COIN,    // 1 or 2, shown as a coin rather than a numeral
     DIE_D66,     // two d6 read as tens and units, 11 to 66
     DIE_ORACLE,  // yes or no, sometimes carrying a modifier
@@ -26,6 +26,7 @@ extern const uint8_t DIE_COUNT;
 typedef struct {
     die_kind_t kind;
     char answer[8];
+    uint8_t value;        // the number rolled; 0 for the oracle
     const char *modifier; // NULL when the answer stands alone
 } roll_t;
 

@@ -4,7 +4,6 @@
 
 #include "boot.h"
 #include "canvas.h"
-#include "coin.h"
 #include "frame.h"
 #include "haptics.h"
 #include "menu.h"
@@ -12,6 +11,7 @@
 #include "power.h"
 #include "reveal.h"
 #include "settings.h"
+#include "stage.h"
 #include "theme.h"
 
 // The knob has no button, so stillness is what confirms a choice.
@@ -61,28 +61,9 @@ static uint8_t fade_alpha(uint32_t now) {
     return (uint8_t)lroundf(fade_from + (fade_to - fade_from) * progress);
 }
 
-/**
- * A coin die is only thrown as a coin while the setting allows it; switched
- * off, D2 prints its number through the reveal like every other die.
- */
-static bool die_is_coin(void) {
-    return DICE[selected].kind == DIE_COIN && settings_is_coin_enabled();
-}
-
 static void roll_and_reveal(uint32_t now) {
     const roll_t roll = roll_die(&DICE[selected]);
-
-    if (die_is_coin()) {
-        // A two sided die only ever answers "1" or "2".
-        coin_flip((uint8_t)(roll.answer[0] - '0'), now);
-        mode = MODE_RESULT;
-        start_fade(255.0f, 255.0f, 0, now);
-        frame_mark_whole();
-
-        return;
-    }
-
-    reveal_begin(&roll, now);
+    stage_begin(&roll, now);
     mode = MODE_RESULT;
     start_fade(255.0f, 255.0f, 0, now);
     frame_mark_whole();
@@ -130,12 +111,8 @@ static void handle_tap(uint32_t now) {
         } break;
 
         case MODE_RESULT: {
-            /*
-             * The coin is already on screen and already the result, so asking
-             * again just sets it spinning. Fading it out and back would put a
-             * blink between two states that are the same object.
-             */
-            if (die_is_coin()) {
+            // What is on stage may take the next roll where it lies.
+            if (stage_is_rerolled_in_place()) {
                 roll_and_reveal(now);
                 break;
             }
@@ -215,11 +192,7 @@ static void draw_scene(void *context, frame_rect_t rows) {
         } break;
 
         case MODE_RESULT: {
-            if (die_is_coin()) {
-                coin_draw(now, alpha);
-            } else {
-                reveal_draw(now, alpha);
-            }
+            stage_draw(now, alpha);
             caption_alpha = 255;
         } break;
     }
@@ -252,12 +225,9 @@ static frame_rect_t render(uint32_t now) {
         } break;
 
         case MODE_RESULT: {
-            if (die_is_coin()) {
-                if (is_fading(now) || (coin_is_animating(now) && !power_is_asleep())) {
-                    frame_mark(coin_stage());
-                }
-            } else if (is_fading(now) || reveal_is_animating(now)) {
-                frame_mark(reveal_stage());
+            // Nothing can be seen while asleep, so an animation stops costing frames.
+            if (is_fading(now) || (stage_is_animating(now) && !power_is_asleep())) {
+                frame_mark(stage_get_rect());
             }
         } break;
     }
@@ -265,12 +235,13 @@ static frame_rect_t render(uint32_t now) {
     return frame_render(now, theme_active()->background, draw_scene, &now);
 }
 
-void mode_begin(uint32_t now, uint8_t die, uint32_t idle_ms) {
-    selected = die < DIE_COUNT ? die : 0;
+void mode_begin(uint32_t now, const mode_config_t *config) {
+    selected = config->die < DIE_COUNT ? config->die : 0;
+    stage_configure(config->coin_enabled);
     mode = MODE_BOOT;
     pending = PENDING_NONE;
     last_rotation_ms = now;
-    power_begin(now, idle_ms);
+    power_begin(now, config->idle_ms);
 
     frame_begin(now);
     frame_mark_whole();
@@ -323,23 +294,21 @@ frame_rect_t mode_step(uint32_t now, mode_input_t input) {
     handle_stillness(now);
     handle_pending(now);
 
-    // The cues belong to whatever is on stage: the coin has none, and the
-    // reveal's must not fire under a coin.
-    if (mode == MODE_RESULT && !die_is_coin()) {
-        reveal_tick(now);
+    if (mode == MODE_RESULT) {
+        stage_tick(now);
     }
 
     return render(now);
 }
 
-ui_mode_t mode_current(void) {
+ui_mode_t mode_get_current(void) {
     return mode;
 }
 
-uint8_t mode_selected_die(void) {
+uint8_t mode_get_selected_die(void) {
     return selected;
 }
 
-uint8_t mode_backlight(void) {
-    return power_level();
+uint8_t mode_get_backlight(void) {
+    return power_get_level();
 }

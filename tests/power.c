@@ -45,12 +45,12 @@ static uint32_t sleep_from(uint32_t from) {
 
 static void check_stays_lit_until_the_timeout(void) {
     power_begin(0, IDLE_MS);
-    EXPECT(power_level() == 255, "the screen does not start lit");
+    EXPECT(power_get_level() == 255, "the screen does not start lit");
     EXPECT(power_is_awake(), "the screen does not start awake");
 
     for (uint32_t now = 0; now <= IDLE_MS; now += STEP_MS) {
         power_step(now, true);
-        EXPECT(power_level() == 255, "the light fell at %u ms, before the timeout", (unsigned)now);
+        EXPECT(power_get_level() == 255, "the light fell at %u ms, before the timeout", (unsigned)now);
     }
 }
 
@@ -60,7 +60,7 @@ static void check_never_sleeps_when_not_permitted(void) {
         power_step(now, false);
     }
 
-    EXPECT(power_level() == 255, "the screen dimmed while sleep was not permitted");
+    EXPECT(power_get_level() == 255, "the screen dimmed while sleep was not permitted");
     EXPECT(power_is_awake(), "the screen stopped being awake while sleep was not permitted");
 }
 
@@ -96,7 +96,7 @@ static void check_dims_gradually_then_sleeps(void) {
     EXPECT(dim_started > IDLE_MS, "the dim began at %u ms, before the timeout", (unsigned)dim_started);
     EXPECT(partial, "the light jumped straight from full to off");
     EXPECT(dark > 0, "the screen never slept");
-    EXPECT(power_level() == 0, "asleep at level %u rather than dark", power_level());
+    EXPECT(power_get_level() == 0, "asleep at level %u rather than dark", power_get_level());
     EXPECT(dark - dim_started >= DIM_MS - STEP_MS && dark - dim_started <= DIM_MS + STEP_MS,
            "the dim took %u ms, expected about %u", (unsigned)(dark - dim_started), DIM_MS);
 
@@ -105,7 +105,7 @@ static void check_dims_gradually_then_sleeps(void) {
         power_step(now, true);
     }
 
-    EXPECT(power_is_asleep() && power_level() == 0, "the screen woke on its own");
+    EXPECT(power_is_asleep() && power_get_level() == 0, "the screen woke on its own");
 }
 
 static void check_input_while_awake_resets_the_timer(void) {
@@ -114,11 +114,11 @@ static void check_input_while_awake_resets_the_timer(void) {
         power_step(now, true);
     }
     power_notice_input(IDLE_MS / 2);
-    EXPECT(power_is_awake() && power_level() == 255, "input while awake disturbed the light");
+    EXPECT(power_is_awake() && power_get_level() == 255, "input while awake disturbed the light");
 
     for (uint32_t now = IDLE_MS / 2; now <= IDLE_MS + IDLE_MS / 4; now += STEP_MS) {
         power_step(now, true);
-        EXPECT(power_level() == 255, "the light fell at %u ms, inside the reset timeout",
+        EXPECT(power_get_level() == 255, "the light fell at %u ms, inside the reset timeout",
                (unsigned)now);
     }
 

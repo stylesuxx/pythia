@@ -77,7 +77,8 @@ void setup() {
     encoder_begin();
     oracle_begin();
 
-    mode_begin(millis(), settings_die_index(), IDLE_SLEEP_MS);
+    const mode_config_t config = {settings_die_index(), IDLE_SLEEP_MS, settings_is_coin_enabled()};
+    mode_begin(millis(), &config);
     ready = true;
 }
 
@@ -95,7 +96,7 @@ void loop() {
         panel_present_rect(canvas_pixels(), rows.top, rows.height, rows.left, rows.width);
     }
 
-    panel_set_backlight(mode_backlight());
+    panel_set_backlight(mode_get_backlight());
 
     /*
      * Every pass polls the touch controller over I2C, so this caps the poll
