@@ -1,34 +1,34 @@
 {
-  "name": "midnight",
+  "name": "neon",
   "colors": {
-    "background": "#080512",
-    "primary": "#FFCE6E",
-    "secondary": "#FFECBE",
-    "muted": "#9276D6",
-    "ring": "#342A58",
-    "ring_active": "#FFCE6E"
+    "background": "#060812",
+    "primary": "#EEFF1A",
+    "secondary": "#4A8BD6",
+    "muted": "#6E7FA3",
+    "ring": "#22304A",
+    "ring_active": "#4A8BD6"
   },
   "boot": {
-    "wordmark": "#FFCE6E",
-    "scramble": "#9276D6",
-    "caption": "#9276D6",
-    "ring": "#342A58",
-    "ring_active": "#FFCE6E"
+    "wordmark": "#EEFF1A",
+    "scramble": "#6E7FA3",
+    "caption": "#6E7FA3",
+    "ring": "#22304A",
+    "ring_active": "#4A8BD6"
   },
   "list": {
-    "name": "#9276D6",
-    "ring": "#342A58",
-    "ring_active": "#FFCE6E"
+    "name": "#4A8BD6",
+    "ring": "#22304A",
+    "ring_active": "#EEFF1A"
   },
   "caption": {
-    "text": "#9276D6"
+    "text": "#6E7FA3"
   },
   "numbers": {
-    "text": "#FFCE6E"
+    "text": "#EEFF1A"
   },
   "oracle": {
-    "answer": "#FFCE6E",
-    "modifier": "#FFECBE"
+    "answer": "#EEFF1A",
+    "modifier": "#FF5FA8"
   },
   "coin": {
     "face": "#FFCE6E"
