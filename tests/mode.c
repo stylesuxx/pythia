@@ -87,10 +87,10 @@ static void reset_recording(void) {
     persist_calls = 0;
 }
 
-static const mode_input_t NOTHING = {0, false};
+static const mode_input_t NOTHING = {0, false, false};
 
 static frame_rect_t step(uint32_t now, int32_t detents, bool touched) {
-    const mode_input_t input = {detents, touched};
+    const mode_input_t input = {detents, touched, false};
     return mode_step(now, input);
 }
 
@@ -506,6 +506,66 @@ static void check_a_touch_held_through_the_wake_rolls_nothing(void) {
     EXPECT(haptic_counts[HAPTIC_ANSWER] == 0, "a touch held through the wake rolled");
 }
 
+/**
+ * Rolling the coin again throws it from where it lies: it is flipping the
+ * instant of the tap, with no fade of the stage first.
+ */
+static void check_a_coin_is_rerolled_where_it_lies(void) {
+    uint8_t coin_die = 0;
+    for (uint8_t index = 0; index < dice_count(); index++) {
+        if (dice_active()[index].kind == DIE_COIN) {
+            coin_die = index;
+        }
+    }
+
+    coin_setting = true;
+    uint32_t now = boot_on(coin_die) + 500;
+    tap(now);
+    for (now += STEP_MS; coin_is_flipping(now); now += STEP_MS) {
+        mode_step(now, NOTHING);
+    }
+    EXPECT(!coin_is_flipping(now), "the first throw never came to rest");
+
+    tap(now);
+    EXPECT(mode_get_current() == MODE_RESULT, "a tap on the resting coin left mode %d",
+           (int)mode_get_current());
+    EXPECT(coin_is_flipping(now + 40), "the second tap did not throw the coin at once");
+}
+
+/**
+ * Applying the user's files restarts the machine on the boot sequence, inputs
+ * drained, and arms the die that was in use afterwards.
+ */
+static void check_a_restart_boots_again_on_the_die_in_use(void) {
+    uint32_t now = boot_on(3) + 500;
+    step(now, 1, false);
+    const uint8_t chosen = mode_get_selected_die();
+    now = step_until(now, now + 3000, MODE_ARMED);
+    EXPECT(now != 0, "the choice did not settle");
+    tap(now + 100);
+    now += 600;
+
+    const mode_input_t restart = {0, false, true};
+    mode_step(now, restart);
+    EXPECT(mode_get_current() == MODE_BOOT, "a restart did not start the boot sequence");
+
+    uint32_t handover = 0;
+    for (uint32_t later = now + STEP_MS; later <= now + BOOT_LIMIT_MS; later += STEP_MS) {
+        const bool poke = later == now + 1000;
+        step(later, poke ? 2 : 0, poke);
+        if (mode_get_current() != MODE_BOOT) {
+            handover = later;
+            break;
+        }
+    }
+
+    EXPECT(handover != 0, "the restarted boot never ended");
+    EXPECT(mode_get_current() == MODE_ARMED, "the restarted boot handed over to mode %d",
+           (int)mode_get_current());
+    EXPECT(mode_get_selected_die() == chosen, "the restart armed die %u; the die in use was %u",
+           (unsigned)mode_get_selected_die(), (unsigned)chosen);
+}
+
 // A stored die the table no longer has arms the oracle, the die of last resort.
 static void check_a_die_past_the_table_arms_the_oracle(void) {
     const mode_config_t config = {
@@ -553,6 +613,8 @@ int main(void) {
     check_a_touch_held_through_the_wake_rolls_nothing();
     check_a_turn_wakes_and_is_acted_on();
     check_a_die_past_the_table_arms_the_oracle();
+    check_a_coin_is_rerolled_where_it_lies();
+    check_a_restart_boots_again_on_the_die_in_use();
 
     if (failures > 0) {
         fprintf(stderr, "mode: %d failure%s\n", failures, failures == 1 ? "" : "s");

@@ -1,6 +1,7 @@
 #include "mode.h"
 
 #include <math.h>
+#include <string.h>
 
 #include "scenes/boot.h"
 #include "render/canvas.h"
@@ -32,6 +33,10 @@ typedef enum {
 static ui_mode_t mode = MODE_BOOT;
 static pending_t pending = PENDING_NONE;
 static uint8_t selected = 0;
+
+// The die in use by name, and how the machine was begun, for a restart.
+static char selected_name[DIE_NAME_CAPACITY];
+static mode_config_t config;
 
 static uint32_t last_rotation_ms = 0;
 
@@ -78,7 +83,8 @@ static void roll_and_reveal(uint32_t now) {
 }
 
 static void settle_choice(void) {
-    settings_set_die_name(dice_active()[selected].name);
+    memcpy(selected_name, dice_active()[selected].name, sizeof(selected_name));
+    settings_set_die_name(selected_name);
 }
 
 static void handle_boot(uint32_t now) {
@@ -244,15 +250,17 @@ static frame_rect_t render(uint32_t now) {
     return frame_render(now, theme_active()->colors.background, draw_scene, &now);
 }
 
-void mode_begin(uint32_t now, const mode_config_t *config) {
-    selected = config->die < dice_count() ? config->die : dice_index_of("ORACLE");
-    stage_configure(config->coin_enabled);
+void mode_begin(uint32_t now, const mode_config_t *begun_with) {
+    config = *begun_with;
+    selected = config.die < dice_count() ? config.die : dice_index_of("ORACLE");
+    memcpy(selected_name, dice_active()[selected].name, sizeof(selected_name));
+    stage_configure(config.coin_enabled);
     mode = MODE_BOOT;
     pending = PENDING_NONE;
     last_rotation_ms = now;
     was_touched = false;
     last_tap_ms = now - TOUCH_DEBOUNCE_MS;
-    power_begin(now, config->idle_ms);
+    power_begin(now, config.idle_ms);
 
     frame_begin(now);
     frame_mark_whole();
@@ -261,6 +269,13 @@ void mode_begin(uint32_t now, const mode_config_t *config) {
 }
 
 frame_rect_t mode_step(uint32_t now, mode_input_t input) {
+    // The files changed under the machine, the layout perhaps among them.
+    if (input.restart) {
+        mode_config_t again = config;
+        again.die = dice_index_of(selected_name);
+        mode_begin(now, &again);
+    }
+
     /*
      * Inputs are drained but ignored until the boot sequence ends, so a turn
      * during boot does not land on a different die afterwards.

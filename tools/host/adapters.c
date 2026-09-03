@@ -32,6 +32,13 @@ __attribute__((weak)) void settings_set_die_name(const char *name) {
     (void)name;
 }
 
+// The host remembers no boots; a program that counts them defines its own.
+__attribute__((weak)) uint8_t settings_note_boot_attempt(void) {
+    return 1;
+}
+
+__attribute__((weak)) void settings_clear_boot_attempts(void) {}
+
 // The host has no drive; a program with files to serve defines its own.
 __attribute__((weak)) bool files_read(const char *name, char **text, size_t *length) {
     (void)name;

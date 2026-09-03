@@ -29,6 +29,7 @@ typedef enum {
 typedef struct {
     int32_t detents; // clicks turned, positive clockwise
     bool touched;    // the touch controller reports a contact
+    bool restart;    // the user's files were applied: boot again on the die in use
 } mode_input_t;
 
 typedef struct {
@@ -42,7 +43,9 @@ void mode_begin(uint32_t now, const mode_config_t *config);
 
 /**
  * Advances the machine to now and returns the canvas rows to push, none when
- * nothing changed.
+ * nothing changed. A restart runs the boot sequence again with the inputs
+ * drained, and arms the die in use afterwards, found again by name in case
+ * the files replaced the layout.
  *
  * NOTE: Call every loop; frames are paced inside.
  */

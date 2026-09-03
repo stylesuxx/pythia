@@ -21,6 +21,7 @@
 #include "mode.h"
 #include "oracle.h"
 #include "hardware/panel.h"
+#include "safe_mode.h"
 #include "settings.h"
 #include "render/theme.h"
 #include "hardware/touch_cst816.h"
@@ -35,18 +36,7 @@
 #define IDLE_SLEEP_MS 120000
 #endif
 
-/*
- * Boots that die before the loop runs are counted in NVS. After this many in
- * a row the next boot brings up the USB port and nothing else, so the unit can
- * always be reflashed over the cable. The count clears once a boot has run
- * this long.
- */
-#define SAFE_MODE_AFTER_ATTEMPTS 3
-#define BOOT_SETTLED_MS 8000
-
 static bool ready = false;
-static bool safe_mode = false;
-static bool boot_settled = false;
 static bool safe_mode_announced = false;
 static settings_t settings;
 static mode_config_t config;
@@ -80,9 +70,9 @@ void setup() {
     strncpy(settings.die_name, "ORACLE", sizeof(settings.die_name));
     settings_begin(&settings);
 
-    if (settings_note_boot_attempt() >= SAFE_MODE_AFTER_ATTEMPTS) {
-        settings_clear_boot_attempts();
-        safe_mode = true;
+    // A boot that dies before the loop is counted; the third in a row stays here.
+    safe_mode_begin(millis());
+    if (safe_mode_is_active()) {
         USB.begin();
         return;
     }
@@ -130,7 +120,7 @@ void setup() {
 }
 
 void loop() {
-    if (safe_mode) {
+    if (safe_mode_is_active()) {
         if (Serial && !safe_mode_announced) {
             safe_mode_announced = true;
             Serial.printf("pythia: safe mode after %d boots that never came up; reflash over USB\n",
@@ -147,20 +137,17 @@ void loop() {
     }
 
     const uint32_t now = millis();
-    if (!boot_settled && now > BOOT_SETTLED_MS) {
-        boot_settled = true;
-        settings_clear_boot_attempts();
-    }
+    safe_mode_step(now);
 
-    // The host's turn with the drive ended: read what it left and start over
-    // on it, self-test and all.
+    // The host's turn with the drive ended: read what it left, and the machine
+    // starts over on it, self-test and all.
+    bool restart = false;
     if (drive_take_change()) {
         apply_user_files();
-        config.die = dice_index_of(settings.die_name);
-        mode_begin(now, &config);
+        restart = true;
     }
 
-    const mode_input_t input = {encoder_take_detents(), touch_read().pressed};
+    const mode_input_t input = {encoder_take_detents(), touch_read().pressed, restart};
 
     const frame_rect_t rows = mode_step(now, input);
     if (rows.height > 0) {
