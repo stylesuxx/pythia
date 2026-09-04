@@ -73,7 +73,10 @@ static bool parse(const char *text, config_theme_t *theme, char *error) {
 // The message carries a line per file; the theme's is the first.
 static bool apply(const char *text, char *error) {
     serve(text);
-    return user_files_apply(error, USER_FILES_MESSAGE_CAPACITY);
+    const bool applied = user_files_begin() == USER_FILES_APPLIED;
+    snprintf(error, USER_FILES_MESSAGE_CAPACITY, "%s", user_files_status());
+
+    return applied;
 }
 
 #define WHITE CANVAS_RGB(0xFF, 0xFF, 0xFF)

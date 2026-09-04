@@ -6,7 +6,6 @@
  */
 
 #include <Arduino.h>
-#include <USB.h>
 #include <Wire.h>
 #include <string.h>
 
@@ -41,23 +40,11 @@ static bool safe_mode_announced = false;
 static settings_t settings;
 static mode_config_t config;
 
-/*
- * Takes the drive from the host, applies the files on it and hands it back.
- * A refused file is reported on the port and in STATUS.txt on the drive.
- */
-static void apply_user_files(void) {
-    if (!drive_open()) {
-        return;
+// A refused file names itself in STATUS.txt on the drive and on the port.
+static void report_user_files(user_files_result_t result) {
+    if (result == USER_FILES_REFUSED) {
+        Serial.printf("user files: %s", user_files_status());
     }
-
-    char message[USER_FILES_MESSAGE_CAPACITY];
-    if (!user_files_apply(message, sizeof(message))) {
-        Serial.printf("user files: %s\n", message);
-    }
-
-    drive_note(message);
-
-    drive_close();
 }
 
 void setup() {
@@ -70,18 +57,17 @@ void setup() {
     strncpy(settings.die_name, "ORACLE", sizeof(settings.die_name));
     settings_begin(&settings);
 
-    // A boot that dies before the loop is counted; the third in a row stays here.
+    /*
+     * The USB stack is already up: the core starts it before setup() for the
+     * serial console, so safe mode has its port by doing nothing. A boot that
+     * dies before the loop is counted; the third in a row stays here.
+     */
     safe_mode_begin(millis());
     if (safe_mode_is_active()) {
-        USB.begin();
         return;
     }
 
-    // The drive registers its interface first; the stack starts once.
-    USB.manufacturerName("Delphi Systems");
-    USB.productName("PYTHIA");
     drive_begin();
-    USB.begin();
 
     if (!panel_begin()) {
         return;
@@ -92,7 +78,7 @@ void setup() {
         return;
     }
 
-    apply_user_files();
+    report_user_files(user_files_begin());
     panel_set_rotated(settings.display_rotated);
 
     /*
@@ -139,15 +125,19 @@ void loop() {
     const uint32_t now = millis();
     safe_mode_step(now);
 
-    // The host's turn with the drive ended: read what it left, and the machine
-    // starts over on it, self-test and all.
-    bool restart = false;
-    if (drive_take_change()) {
-        apply_user_files();
-        restart = true;
-    }
+    /*
+     * A turn the computer ended is followed by the boot sequence, whatever
+     * was refused: it is the one acknowledgement the reader gets without
+     * plugging the drive back in.
+     */
+    const user_files_result_t files = user_files_step();
+    report_user_files(files);
 
-    const mode_input_t input = {encoder_take_detents(), touch_read().pressed, restart};
+    const mode_input_t input = {
+        encoder_take_detents(),
+        touch_read().pressed,
+        files != USER_FILES_QUIET
+    };
 
     const frame_rect_t rows = mode_step(now, input);
     if (rows.height > 0) {

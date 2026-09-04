@@ -12,6 +12,11 @@
 
 #define THEME_FILE "theme.json"
 #define LAYOUT_FILE "layout.json"
+#define README_FILE "README.txt"
+#define STATUS_FILE "STATUS.txt"
+
+// What STATUS.txt said after the last turn.
+static char status[USER_FILES_MESSAGE_CAPACITY] = "";
 
 /*
  * A missing file restores the built-in and is written back, so the drive
@@ -80,11 +85,71 @@ static bool apply_layout(char *line, size_t capacity) {
     return true;
 }
 
-bool user_files_apply(char *message, size_t message_capacity) {
+/*
+ * README.txt takes CRLF line endings on the way, so every editor on every
+ * computer reads it. The JSON files are written as they are, because what is
+ * written back must be the built-in file byte for byte.
+ */
+static void write_with_crlf(const char *name, const char *text) {
+    size_t newlines = 0;
+    for (const char *cursor = text; *cursor != '\0'; cursor++) {
+        newlines += *cursor == '\n';
+    }
+
+    char *converted = malloc(strlen(text) + newlines + 1);
+    if (converted == NULL) {
+        return;
+    }
+
+    char *out = converted;
+    for (const char *cursor = text; *cursor != '\0'; cursor++) {
+        if (*cursor == '\n') {
+            *out++ = '\r';
+        }
+
+        *out++ = *cursor;
+    }
+
+    *out = '\0';
+    files_write(name, converted);
+    free(converted);
+}
+
+/*
+ * One turn: the files, then what the drive says about them, README.txt at
+ * every turn so a firmware update never leaves a stale copy and STATUS.txt
+ * last, so it reports the whole turn.
+ */
+static user_files_result_t take_turn(void) {
+    if (!files_open()) {
+        return USER_FILES_QUIET;
+    }
+
     char theme_line[CONFIG_ERROR_CAPACITY + 16];
     char layout_line[CONFIG_ERROR_CAPACITY + 16];
     const bool theme_ok = apply_theme(theme_line, sizeof(theme_line));
     const bool layout_ok = apply_layout(layout_line, sizeof(layout_line));
-    snprintf(message, message_capacity, "%s\r\n%s", theme_line, layout_line);
-    return theme_ok && layout_ok;
+    snprintf(status, sizeof(status), "%s\r\n%s\r\n", theme_line, layout_line);
+
+    write_with_crlf(README_FILE, readme_builtin_text());
+    files_write(STATUS_FILE, status);
+    files_close();
+
+    return theme_ok && layout_ok ? USER_FILES_APPLIED : USER_FILES_REFUSED;
+}
+
+user_files_result_t user_files_begin(void) {
+    return take_turn();
+}
+
+user_files_result_t user_files_step(void) {
+    if (!files_take_change()) {
+        return USER_FILES_QUIET;
+    }
+
+    return take_turn();
+}
+
+const char *user_files_status(void) {
+    return status;
 }

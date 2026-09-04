@@ -12,13 +12,10 @@
 #include <string.h>
 #include <wear_levelling.h>
 
-#include "builtin_files.h"
 #include "files.h"
 
 #define PARTITION_LABEL "ffat"
 #define MOUNT_POINT "/drive"
-#define README_PATH MOUNT_POINT "/README.txt"
-#define STATUS_PATH MOUNT_POINT "/STATUS.txt"
 #define MAX_OPEN_FILES 4
 
 // The largest file worth reading whole; a typeface is a few hundred KB.
@@ -175,25 +172,6 @@ static void detach_from_host(void) {
     }
 }
 
-// Line endings become CRLF on the way, so every editor on every host reads it.
-static void write_text(const char *path, const char *text) {
-    FILE *file = fopen(path, "w");
-    if (file == NULL) {
-        Serial.printf("drive: could not write %s\n", path);
-        return;
-    }
-
-    for (const char *cursor = text; *cursor != '\0'; cursor++) {
-        if (*cursor == '\n') {
-            fputc('\r', file);
-        }
-
-        fputc(*cursor, file);
-    }
-
-    fclose(file);
-}
-
 bool drive_begin(void) {
     partition = esp_partition_find_first(ESP_PARTITION_TYPE_DATA, ESP_PARTITION_SUBTYPE_DATA_FAT,
                                          PARTITION_LABEL);
@@ -204,14 +182,11 @@ bool drive_begin(void) {
 
     lock = xSemaphoreCreateMutex();
 
-    // Formatting on first use and writing the README happen with the
-    // filesystem in the firmware's hands.
+    // Formatting on first use happens with the filesystem in the firmware's hands.
     if (!mount_filesystem(true)) {
         return false;
     }
 
-    // Rewritten at every boot, so a firmware update never leaves a stale copy.
-    write_text(README_PATH, readme_builtin_text());
     unmount_filesystem();
 
     if (!attach_to_host()) {
@@ -237,14 +212,14 @@ bool drive_begin(void) {
     return true;
 }
 
-bool drive_take_change(void) {
+bool files_take_change(void) {
     const bool was_changed = changed;
     changed = false;
 
     return was_changed;
 }
 
-bool drive_open(void) {
+bool files_open(void) {
     if (partition == NULL) {
         return false;
     }
@@ -257,7 +232,7 @@ bool drive_open(void) {
     return ok;
 }
 
-void drive_close(void) {
+void files_close(void) {
     if (partition == NULL) {
         return;
     }
@@ -266,22 +241,6 @@ void drive_close(void) {
     unmount_filesystem();
     attach_to_host();
     xSemaphoreGive(lock);
-}
-
-void drive_note(const char *status) {
-    if (!mounted) {
-        return;
-    }
-
-    FILE *file = fopen(STATUS_PATH, "w");
-    if (file == NULL) {
-        Serial.println("drive: could not write STATUS.txt");
-        return;
-    }
-
-    fputs(status, file);
-    fputs("\r\n", file);
-    fclose(file);
 }
 
 bool files_read(const char *name, char **text, size_t *length) {

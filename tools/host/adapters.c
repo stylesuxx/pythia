@@ -39,16 +39,31 @@ __attribute__((weak)) uint8_t settings_note_boot_attempt(void) {
 
 __attribute__((weak)) void settings_clear_boot_attempts(void) {}
 
-// The host has no drive; a program with files to serve defines its own.
+/*
+ * The host's drive can always be taken, is never ejected and carries nothing;
+ * a program with files to serve defines its own.
+ */
+__attribute__((weak)) bool files_take_change(void) {
+    return false;
+}
+
+__attribute__((weak)) bool files_open(void) {
+    return true;
+}
+
+__attribute__((weak)) void files_close(void) {}
+
 __attribute__((weak)) bool files_read(const char *name, char **text, size_t *length) {
     (void)name;
     (void)text;
     (void)length;
+
     return false;
 }
 
 __attribute__((weak)) bool files_write(const char *name, const char *text) {
     (void)name;
     (void)text;
+
     return false;
 }

@@ -66,7 +66,10 @@ static bool parse(const char *text, config_layout_t *layout, char *error) {
 
 static bool apply(const char *text, char *message) {
     served_layout = text;
-    return user_files_apply(message, USER_FILES_MESSAGE_CAPACITY);
+    const bool applied = user_files_begin() == USER_FILES_APPLIED;
+    snprintf(message, USER_FILES_MESSAGE_CAPACITY, "%s", user_files_status());
+
+    return applied;
 }
 
 static const char CUSTOM[] =
