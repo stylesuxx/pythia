@@ -16,10 +16,10 @@
 #include <string.h>
 
 #include "config.h"
-#include "files.h"
+#include "ports/files.h"
 #include "render/canvas.h"
 #include "render/theme.h"
-#include "builtin_files.h"
+#include "ports/builtin_files.h"
 #include "user_files.h"
 
 static int failures = 0;

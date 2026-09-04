@@ -10,9 +10,9 @@
 #include <stdlib.h>
 
 #include "esp_random.h"
-#include "files.h"
-#include "haptics.h"
-#include "settings.h"
+#include "ports/files.h"
+#include "ports/haptics.h"
+#include "ports/settings.h"
 
 __attribute__((weak)) uint32_t esp_random(void) {
     return ((uint32_t)rand() << 17) ^ ((uint32_t)rand() << 6) ^ (uint32_t)rand();

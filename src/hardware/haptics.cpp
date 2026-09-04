@@ -1,4 +1,4 @@
-#include "haptics.h"
+#include "ports/haptics.h"
 
 #include <Adafruit_DRV2605.h>
 #include <Arduino.h>

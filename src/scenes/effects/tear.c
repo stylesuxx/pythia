@@ -10,7 +10,7 @@
 #include "render/canvas.h"
 #include "scenes/effects/effect.h"
 #include "scenes/glitch.h"
-#include "haptics.h"
+#include "ports/haptics.h"
 
 /**
  * The boot's own tear at its own pace, with the shift scaled from the

@@ -1,6 +1,6 @@
 #include "safe_mode.h"
 
-#include "settings.h"
+#include "ports/settings.h"
 
 static uint32_t started_ms = 0;
 static bool active = false;

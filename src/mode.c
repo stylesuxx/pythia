@@ -4,15 +4,14 @@
 #include <string.h>
 
 #include "scenes/boot.h"
-#include "render/canvas.h"
 #include "frame.h"
-#include "haptics.h"
+#include "ports/haptics.h"
 #include "scenes/caption.h"
 #include "dice.h"
 #include "scenes/menu.h"
 #include "oracle.h"
 #include "power.h"
-#include "settings.h"
+#include "ports/settings.h"
 #include "stage.h"
 #include "render/theme.h"
 

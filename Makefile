@@ -18,7 +18,7 @@
 #   make clean               remove build output
 #   make distclean           also remove the fetched driver
 #
-# Sources are globbed, so a new .c under src/, src/scenes/ or src/render/ joins the preview
+# Sources are globbed, so a new .c under src/, src/scenes/, src/scenes/effects/ or src/render/ joins the preview
 # without editing this file, and a new .c under tests/ becomes a test program that make check
 # runs. Anything they need from the ESP-IDF gets a stub in tools/host.
 #
@@ -29,7 +29,7 @@ CC ?= gcc
 # -Wswitch-enum keeps a switch over an enum exhaustive even where it has a
 # default, so a new state is a compile error here rather than a fallback.
 CFLAGS ?= -O2 -std=gnu11 -Wall -Wextra -Wswitch-enum
-CPPFLAGS := -Isrc -Ilib/jsmn -Itools/host -Itools/host/third_party
+CPPFLAGS := -Isrc -Ilib/jsmn -Itools/host -Itools/host/esp-idf -Itools/host/third_party
 LDLIBS := -lm
 
 BUILD := build
@@ -78,7 +78,6 @@ ST77916_PARTS := $(subst ., ,$(ST77916_VERSION))
 # stb_truetype rasterises the fonts in tools/make_fonts.c. Pinned to a commit
 # rather than a branch, and checked by hash, because src/render/generated is committed:
 # the glyph bytes in the repo have to stay reproducible from this exact header.
-STB_TRUETYPE_VERSION := 1.26
 STB_TRUETYPE_COMMIT := 6e9f34d5429cf16790ec43c9bac3f1ee4ad1f760
 STB_TRUETYPE_URL := https://raw.githubusercontent.com/nothings/stb/$(STB_TRUETYPE_COMMIT)/stb_truetype.h
 STB_TRUETYPE_SHA256 := ecd30b05e0dd4fea3a13c26810dd9e1992dc379049482c393d5a19e6b5090aab

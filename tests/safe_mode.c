@@ -10,7 +10,7 @@
 #include <stdio.h>
 
 #include "safe_mode.h"
-#include "settings.h"
+#include "ports/settings.h"
 
 static int failures = 0;
 

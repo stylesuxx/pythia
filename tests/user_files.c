@@ -18,10 +18,10 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "builtin_files.h"
+#include "ports/builtin_files.h"
 #include "config.h"
 #include "dice.h"
-#include "files.h"
+#include "ports/files.h"
 #include "render/canvas.h"
 #include "render/theme.h"
 #include "user_files.h"

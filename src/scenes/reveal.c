@@ -4,7 +4,7 @@
 #include <stddef.h>
 
 #include "render/canvas.h"
-#include "haptics.h"
+#include "ports/haptics.h"
 #include "render/theme.h"
 #include "scenes/effects/slide.h"
 

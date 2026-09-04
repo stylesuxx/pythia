@@ -103,15 +103,17 @@ make roll DIE=D100 FIRST=42 SECOND=87 EFFECT=slide
 
 ## 8. Customising
 
-Plugged into a computer, the terminal is also a 10 MB USB drive named **PYTHIA**. On it is `theme.json`, the look currently in use, written by the terminal itself so there is always something to edit from. The built-in look is [`data/theme.json`](data/theme.json) in this repository, and the file on the drive starts as a copy of it. Change its colours to recolour the display.
+Plugged into a computer, the terminal is also a 10 MB USB drive named **PYTHIA**. On it is `settings.json`, the preferences and the names of the theme and the layout in use; `themes/`, a folder per theme, each holding a `theme.json`; and `layouts/`, a file per layout. The built-in look is `themes/neon/theme.json` and the built-in dice are `layouts/default.json`, both copies of [`data/`](data/) in this repository, written by the terminal itself whenever they are missing so there is always something to edit from.
 
-Beside it is `layout.json`, the dice the knob offers: each entry has a `name`, a `kind` of `numeric`, `coin`, `d66` or `oracle`, `sides` for a numeric die, and optionally an `effect` for how its result arrives, `tear` or `slide`; `default_effect` at the top is what the rest take. Drop the dice you never roll, reorder the rest, or add a D30. A name may use the digits and the letters of the built-in names, and must fit along the rim.
+To make a theme, copy the `neon` folder under a name of your own, change its colours, and put that name in `settings.json`. Every colour takes `#RRGGBB`. The `colors` section holds the general roles and each screen has a section of its own. A screen's key wins over the role it follows, so the dice numbers, the oracle's answer and the coin can each have a colour of their own or all follow `primary`. Every key is optional; the ones you leave out follow their role, and a role you leave out keeps the built-in value.
 
-Every colour takes `#RRGGBB`. The `colors` section holds the general roles and each screen has a section of its own. A screen's key wins over the role it follows, so the dice numbers, the oracle's answer and the coin can each have a colour of their own or all follow `primary`. Every key is optional; the ones you leave out follow their role, and a role you leave out keeps the built-in value.
+A layout is the dice the knob offers: each entry has a `name`, a `kind` of `numeric`, `coin`, `d66` or `oracle`, `sides` for a numeric die, and optionally an `effect` for how its result arrives, `tear` or `slide`; `default_effect` at the top is what the rest take. Drop the dice you never roll, reorder the rest, or add a D30. A name may use the digits and the letters of the built-in names, and must fit along the rim.
 
-Save the file and **eject the drive**. The terminal reads it at once, runs its self-test in the new colours, and the drive reappears for the next edit.
+`settings.json` also holds the preferences: `display_rotated` for a case worn the other way up, `haptics` for the cues, `reverse_knob` to swap the turning direction, `sleep_after` in seconds before the screen sleeps (0 never sleeps), and `brightness` as a per cent ceiling on the light. A key left out means its default.
 
-`STATUS.txt` on the drive says what was applied; a file the terminal cannot accept is refused with the reason there, and the previous look stays. Delete `theme.json` and eject to return to the built-in look; the terminal writes the file again from it.
+Save the file and **eject the drive**. The terminal reads it at once, runs its self-test in the new look, and the drive reappears for the next edit.
+
+`STATUS.txt` on the drive says what was applied; a file the terminal cannot accept is refused with the reason there, and the previous one stays. Delete the built-in theme, layout or settings file and eject to return to it; the terminal writes the file again.
 
 > Eject before unplugging. A file the computer has not finished writing is refused rather than half applied.
 

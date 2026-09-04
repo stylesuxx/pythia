@@ -7,7 +7,7 @@
 
 #include "config.h"
 #include "render/generated/fonts.h"
-#include "builtin_files.h"
+#include "ports/builtin_files.h"
 
 // The built-in typefaces; the palette comes from data/themes/neon/theme.json.
 static const theme_t BUILT_IN_FACES = {

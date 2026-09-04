@@ -8,7 +8,7 @@
 #include "render/generated/fonts.h"
 #include "scenes/caption.h"
 #include "scenes/glitch.h"
-#include "haptics.h"
+#include "ports/haptics.h"
 #include "render/theme.h"
 
 const char BOOT_WORDMARK[] = "PYTHIA//";

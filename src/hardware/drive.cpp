@@ -14,7 +14,7 @@
 #include <sys/stat.h>
 #include <wear_levelling.h>
 
-#include "files.h"
+#include "ports/files.h"
 
 #define PARTITION_LABEL "ffat"
 #define MOUNT_POINT "/drive"

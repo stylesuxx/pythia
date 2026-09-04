@@ -17,7 +17,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "haptics.h"
+#include "ports/haptics.h"
 #include "oracle.h"
 #include "render/canvas.h"
 #include "render/theme.h"

@@ -12,15 +12,15 @@
 
 #include "render/canvas.h"
 #include "scenes/coin.h"
-#include "builtin_files.h"
+#include "ports/builtin_files.h"
 #include "config.h"
 #include "dice.h"
 #include "scenes/effects/effect.h"
-#include "haptics.h"
+#include "ports/haptics.h"
 #include "mode.h"
 #include "oracle.h"
 #include "power.h"
-#include "settings.h"
+#include "ports/settings.h"
 #include "stage.h"
 
 #define STEP_MS 2

@@ -10,7 +10,7 @@
 
 #include "render/canvas.h"
 #include "scenes/effects/effect.h"
-#include "haptics.h"
+#include "ports/haptics.h"
 
 // How far beyond the edge the glyphs start.
 #define ENTRY_GAP 40

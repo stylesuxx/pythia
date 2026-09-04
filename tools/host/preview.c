@@ -14,14 +14,14 @@
 #include "scenes/caption.h"
 #include "scenes/coin.h"
 #include "scenes/effects/effect.h"
-#include "builtin_files.h"
+#include "ports/builtin_files.h"
 #include "config.h"
 #include "dice.h"
 #include "esp_random.h"
 #include "mode.h"
 #include "oracle.h"
 #include "stage.h"
-#include "settings.h"
+#include "ports/settings.h"
 #include "render/theme.h"
 
 #include "gif.h"
@@ -232,7 +232,7 @@ static int render_boot(gif_writer_t *gif) {
  * stillness that settles the choice back into the armed screen.
  */
 static int render_menu(gif_writer_t *gif) {
-    const mode_input_t nothing = {0, false};
+    const mode_input_t nothing = {0, false, false};
     const mode_config_t config = {.die = dice_index_of("ORACLE"), .idle_ms = 120000};
     mode_begin(0, &config);
     uint32_t now = 0;
@@ -271,7 +271,7 @@ static int render_menu(gif_writer_t *gif) {
  */
 static int render_roll(const char *die_name, const char *first, const char *second,
                        gif_writer_t *gif) {
-    const mode_input_t nothing = {0, false};
+    const mode_input_t nothing = {0, false, false};
     uint8_t die = dice_count();
     for (uint8_t index = 0; index < dice_count(); index++) {
         if (strcmp(dice_active()[index].name, die_name) == 0) {
