@@ -16,8 +16,9 @@ extern "C" {
 
 /**
  * Formats the partition on first use and registers the mass storage
- * interface. Call before USB.begin(). False when there is no usable
- * partition, in which case there is no drive and no user files.
+ * interface with the USB stack the core has already started. False when
+ * there is no usable partition, in which case there is no drive and no user
+ * files.
  */
 bool drive_begin(void);
 
