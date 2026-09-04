@@ -105,6 +105,8 @@ make roll DIE=D100 FIRST=42 SECOND=87 EFFECT=slide
 
 Plugged into a computer, the terminal is also a 10 MB USB drive named **PYTHIA**. On it is `theme.json`, the look currently in use, written by the terminal itself so there is always something to edit from. The built-in look is [`data/theme.json`](data/theme.json) in this repository, and the file on the drive starts as a copy of it. Change its colours to recolour the display.
 
+Beside it is `layout.json`, the dice the knob offers: each entry has a `name`, a `kind` of `numeric`, `coin`, `d66` or `oracle`, `sides` for a numeric die, and optionally an `effect` for how its result arrives, `tear` or `slide`; `default_effect` at the top is what the rest take. Drop the dice you never roll, reorder the rest, or add a D30. A name may use the digits and the letters of the built-in names, and must fit along the rim.
+
 Every colour takes `#RRGGBB`. The `colors` section holds the general roles and each screen has a section of its own. A screen's key wins over the role it follows, so the dice numbers, the oracle's answer and the coin can each have a colour of their own or all follow `primary`. Every key is optional; the ones you leave out follow their role, and a role you leave out keeps the built-in value.
 
 Save the file and **eject the drive**. The terminal reads it at once, runs its self-test in the new colours, and the drive reappears for the next edit.
