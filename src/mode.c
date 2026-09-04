@@ -76,7 +76,7 @@ static uint8_t fade_alpha(uint32_t now) {
 
 static void roll_and_reveal(uint32_t now) {
     const roll_t roll = roll_die(&dice_active()[selected]);
-    stage_begin(&roll, now);
+    stage_begin(&roll, config.coin_enabled, now);
     mode = MODE_RESULT;
     start_fade(255.0f, 255.0f, 0, now);
     frame_mark_whole();
@@ -254,7 +254,6 @@ void mode_begin(uint32_t now, const mode_config_t *begun_with) {
     config = *begun_with;
     selected = config.die < dice_count() ? config.die : dice_index_of("ORACLE");
     memcpy(selected_name, dice_active()[selected].name, sizeof(selected_name));
-    stage_configure(config.coin_enabled);
     mode = MODE_BOOT;
     pending = PENDING_NONE;
     last_rotation_ms = now;

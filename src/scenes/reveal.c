@@ -6,18 +6,16 @@
 #include "render/canvas.h"
 #include "haptics.h"
 #include "render/theme.h"
+#include "scenes/effects/slide.h"
 
 /**
  * YES and NO stand 70 rows tall on this baseline, sharing one optical centre
- * with the digits of a numeric result, and the band is the rows either can
- * reach, the modifier included.
+ * with the digits of a numeric result, inside the band the stage reports.
  */
 #define ANSWER_BASELINE 212
 #define MODIFIER_GAP 20
-#define STAGE_TOP 124
-#define STAGE_HEIGHT 110
 
-#define ANSWER_SLIDE_MS 380
+// The answer's entry is the slide; the hold and the modifier are the reveal's own.
 #define BEAT_HOLD_MS 620
 #define MODIFIER_SLIDE_MS 260
 
@@ -25,18 +23,16 @@
  * The second beat always starts at the same moment, whether or not a modifier
  * is coming. Nothing before it may hint at the outcome.
  */
-#define BEAT_TWO_MS (ANSWER_SLIDE_MS + BEAT_HOLD_MS)
+#define BEAT_TWO_MS (SLIDE_MS + BEAT_HOLD_MS)
 #define REVEAL_TOTAL_MS (BEAT_TWO_MS + MODIFIER_SLIDE_MS)
 
-// Offset so the haptic lands with the glyph rather than after it.
-#define ANSWER_THUMP_MS (ANSWER_SLIDE_MS - 60)
 #define MODIFIER_THUMP_MS (BEAT_TWO_MS + 90)
 
 static roll_t current_roll;
 static uint32_t started_ms = 0;
 
 static const font_t *answer_font = NULL;
-static float answer_entry_x = 0.0f;
+static int answer_width = 0;
 static float answer_centre_x = 0.0f;
 static float answer_final_x = 0.0f;
 static float modifier_entry_x = 0.0f;
@@ -59,12 +55,6 @@ static float clamp_unit(float value) {
 
 static float mix(float from, float to, float amount) {
     return from + (to - from) * amount;
-}
-
-// Hard deceleration, so the answer arrives with weight instead of drifting in.
-static float ease_out_quint(float t) {
-    const float inverse = 1.0f - t;
-    return 1.0f - inverse * inverse * inverse * inverse * inverse;
 }
 
 static float ease_out_cubic(float t) {
@@ -93,12 +83,11 @@ void reveal_begin(const roll_t *roll, uint32_t now) {
 
     answer_font = theme->answer_font;
 
-    const int answer_width = font_text_width(answer_font, current_roll.answer);
+    answer_width = font_text_width(answer_font, current_roll.answer);
     const int modifier_width =
         current_roll.modifier != NULL ? font_text_width(theme->label_font, current_roll.modifier) : 0;
 
     answer_centre_x = (float)((CANVAS_WIDTH - answer_width) / 2);
-    answer_entry_x = -(float)(answer_width + 40);
 
     if (current_roll.modifier != NULL) {
         const int combined = answer_width + MODIFIER_GAP + modifier_width;
@@ -114,7 +103,7 @@ void reveal_begin(const roll_t *roll, uint32_t now) {
 void reveal_tick(uint32_t now) {
     const uint32_t elapsed = now - started_ms;
 
-    if (!answer_thumped && elapsed >= ANSWER_THUMP_MS) {
+    if (!answer_thumped && elapsed >= SLIDE_THUMP_MS) {
         answer_thumped = true;
         haptics_play(HAPTIC_ANSWER);
     }
@@ -132,11 +121,8 @@ void reveal_draw(uint32_t now, uint8_t alpha) {
     const uint32_t elapsed = now - started_ms;
 
     float answer_x;
-    if (elapsed < ANSWER_SLIDE_MS) {
-        const float progress = ease_out_quint((float)elapsed / (float)ANSWER_SLIDE_MS);
-        answer_x = mix(answer_entry_x, answer_centre_x, progress);
-    } else if (elapsed < BEAT_TWO_MS) {
-        answer_x = answer_centre_x;
+    if (elapsed < BEAT_TWO_MS) {
+        answer_x = slide_position(answer_width, (int)answer_centre_x, elapsed);
     } else {
         const float progress =
             ease_out_cubic(clamp_unit((float)(elapsed - BEAT_TWO_MS) / (float)MODIFIER_SLIDE_MS));
@@ -152,10 +138,6 @@ void reveal_draw(uint32_t now, uint8_t alpha) {
         canvas_text(theme->label_font, current_roll.modifier, (int)lroundf(modifier_x),
                     ANSWER_BASELINE, theme->oracle.modifier, alpha);
     }
-}
-
-frame_rect_t reveal_stage(void) {
-    return (frame_rect_t){STAGE_TOP, STAGE_HEIGHT, 0, CANVAS_WIDTH};
 }
 
 bool reveal_is_animating(uint32_t now) {

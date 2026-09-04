@@ -12,16 +12,17 @@ extern "C" {
 
 /*
  * What a roll puts on screen: the reveal for the oracle, the coin for D2
- * while the coin is enabled, and an effect for every other result.
+ * while the coin is enabled, and for every other result the digits in the
+ * theme's number face, centred on the band the oracle's answer shares,
+ * brought there by the effect the roll carries.
  *
  * The stage picks once, when the roll happens, and everything after goes to
  * what it picked, so only what was begun is ever ticked, drawn or asked for
  * its rows. It is the one place a roll's kind becomes a drawing.
  */
 
-// Whether D2 is thrown as a coin; off, it prints a number like any other die.
-void stage_configure(bool coin_enabled);
-void stage_begin(const roll_t *roll, uint32_t now);
+// coin_enabled decides whether D2 is thrown as a coin or printed like any other die.
+void stage_begin(const roll_t *roll, bool coin_enabled, uint32_t now);
 void stage_draw(uint32_t now, uint8_t alpha);
 frame_rect_t stage_get_rect(void);
 bool stage_is_animating(uint32_t now);
@@ -39,6 +40,12 @@ void stage_tick(uint32_t now);
  * again from where it lies instead of fading the stage out first.
  */
 bool stage_is_rerolled_in_place(void);
+
+/**
+ * The rows the reveal and a numeric result share, so a frame can repaint just
+ * that band. The rim caption stays clear of it.
+ */
+frame_rect_t stage_band(void);
 
 #ifdef __cplusplus
 }

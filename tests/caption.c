@@ -15,8 +15,7 @@
 #include "render/theme.h"
 #include "scenes/caption.h"
 #include "scenes/coin.h"
-#include "scenes/numeric.h"
-#include "scenes/reveal.h"
+#include "stage.h"
 
 static int failures = 0;
 
@@ -104,15 +103,11 @@ static void check_the_fit_measure_is_honest(const theme_t *theme) {
 // The caption's rect and every stage are told apart by numbers, not pixels.
 static void check_the_rect_clears_every_stage(void) {
     const frame_rect_t caption = caption_get_rect();
-    const frame_rect_t reveal = reveal_stage();
-    const frame_rect_t numeric = numeric_stage();
+    const frame_rect_t band = stage_band();
     const frame_rect_t coin = coin_stage();
 
-    EXPECT(is_disjoint(caption, reveal), "the caption's rows %d+%d overlap the reveal's stage %d+%d",
-           caption.top, caption.height, reveal.top, reveal.height);
-    EXPECT(is_disjoint(caption, numeric),
-           "the caption's rows %d+%d overlap the numeric band %d+%d",
-           caption.top, caption.height, numeric.top, numeric.height);
+    EXPECT(is_disjoint(caption, band), "the caption's rows %d+%d overlap the stage band %d+%d",
+           caption.top, caption.height, band.top, band.height);
     EXPECT(is_disjoint(caption, coin), "the caption's rows %d+%d overlap the coin's stage %d+%d",
            caption.top, caption.height, coin.top, coin.height);
 }

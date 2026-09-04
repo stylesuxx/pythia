@@ -187,8 +187,7 @@ static int render_reveal(const char *answer, const char *modifier, const char *c
                                                                            : DIE_NUMERIC;
 
     roll.effect = preview_effect;
-    stage_configure(false);
-    stage_begin(&roll, 0);
+    stage_begin(&roll, false, 0);
     int frames = 0;
     for (uint32_t now = 0; now <= 1600; now += FRAME_INTERVAL_MS) {
         canvas_fill(theme_active()->colors.background);

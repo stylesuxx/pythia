@@ -22,6 +22,7 @@
 #include "render/canvas.h"
 #include "render/theme.h"
 #include "scenes/reveal.h"
+#include "stage.h"
 
 #define STEP_MS 1
 #define FRAME_ALPHA 255
@@ -250,7 +251,7 @@ static void check_stage_band(const theme_t *theme, const roll_t *roll, uint32_t 
     for (int column = 0; column < CANVAS_WIDTH; column++) {
         background_row[column] = theme->colors.background;
     }
-    const frame_rect_t stage = reveal_stage();
+    const frame_rect_t stage = stage_band();
 
     reveal_begin(roll, start);
     for (uint32_t now = start; reveal_is_animating(now); now += STEP_MS) {

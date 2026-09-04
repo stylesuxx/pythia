@@ -13,6 +13,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <math.h>
 #include <string.h>
 
 #include "haptics.h"
@@ -21,7 +22,7 @@
 #include "render/theme.h"
 #include "scenes/coin.h"
 #include "scenes/effects/effect.h"
-#include "scenes/numeric.h"
+#include "scenes/effects/slide.h"
 #include "scenes/reveal.h"
 #include "stage.h"
 
@@ -30,11 +31,12 @@
  * check and laid on a copy of the roll as it goes on stage.
  */
 static uint8_t chosen_effect = 0;
+static bool coin_setting = false;
 
 static void begin_on_stage(const roll_t *roll, uint32_t now) {
     roll_t copy = *roll;
     copy.effect = chosen_effect;
-    stage_begin(&copy, now);
+    stage_begin(&copy, coin_setting, now);
 }
 
 #define STEP_MS 1
@@ -127,16 +129,16 @@ static void render_rest(const theme_t *theme, const roll_t *roll, uint32_t start
 // The kind of the roll, and the coin setting, decide what is on stage.
 static void check_the_kind_picks_the_stage(void) {
     const roll_t oracle = oracle_outcome(0);
-    stage_configure(true);
+    coin_setting = true;
 
     begin_on_stage(&oracle, 0);
-    if (!is_same_rect(stage_get_rect(), reveal_stage())) {
-        fail("an oracle roll is not on the reveal's band");
+    if (!is_same_rect(stage_get_rect(), stage_band())) {
+        fail("an oracle roll is not on the band");
     }
 
     begin_on_stage(&NUMERIC_ROLLS[1], 0);
-    if (!is_same_rect(stage_get_rect(), numeric_stage())) {
-        fail("a numeric roll is not on the numeric band");
+    if (!is_same_rect(stage_get_rect(), stage_band())) {
+        fail("a numeric roll is not on the band");
     }
 
     begin_on_stage(&COIN_ROLL, 0);
@@ -149,19 +151,109 @@ static void check_the_kind_picks_the_stage(void) {
     }
 
     chosen_effect = 0;
-    stage_configure(false);
+    coin_setting = false;
     begin_on_stage(&COIN_ROLL, 0);
-    if (!is_same_rect(stage_get_rect(), numeric_stage())) {
-        fail("D2 with the coin disabled is not printed on the numeric band");
+    if (!is_same_rect(stage_get_rect(), stage_band())) {
+        fail("D2 with the coin disabled is not printed on the band");
     }
 
     if (stage_is_rerolled_in_place()) {
         fail("a printed D2 is rerolled in place");
     }
+}
 
-    // One band for the two results that share the centre of the screen.
-    if (!is_same_rect(reveal_stage(), numeric_stage())) {
-        fail("the oracle's band and the numeric band differ");
+// The rightmost column with ink on it, or -1 on an empty frame.
+static int rightmost_ink(const theme_t *theme) {
+    const uint16_t *pixels = canvas_pixels();
+    for (int column = CANVAS_WIDTH - 1; column >= 0; column--) {
+        for (int row = 0; row < CANVAS_HEIGHT; row++) {
+            if (pixels[(size_t)row * CANVAS_WIDTH + column] != theme->colors.background) {
+                return column;
+            }
+        }
+    }
+
+    return -1;
+}
+
+/**
+ * The oracle's answer and a number under the slide effect enter by one
+ * motion: at every millisecond of the slide the ink of each stands where
+ * slide_position() puts it, measured from where it stands at rest, and both
+ * are felt at the same instant.
+ */
+static void check_the_answer_enters_as_the_slide(const theme_t *theme) {
+    const roll_t oracle = oracle_outcome(1);
+    const roll_t *number = &NUMERIC_ROLLS[2];
+    const int answer_width = font_text_width(theme->answer_font, oracle.answer);
+    const int answer_rest = (CANVAS_WIDTH - answer_width) / 2;
+    const int number_width = font_text_width(theme->number_font, number->answer);
+    const int number_rest = (CANVAS_WIDTH - number_width) / 2;
+
+    chosen_effect = effect_index_of("slide");
+    coin_setting = false;
+
+    reveal_begin(&oracle, 0);
+    canvas_fill(theme->colors.background);
+    reveal_draw(SLIDE_MS, FRAME_ALPHA);
+    const int answer_ink_rest = rightmost_ink(theme);
+
+    begin_on_stage(number, 0);
+    canvas_fill(theme->colors.background);
+    stage_draw(SLIDE_MS, FRAME_ALPHA);
+    const int number_ink_rest = rightmost_ink(theme);
+
+    for (uint32_t elapsed = 0; elapsed < SLIDE_MS; elapsed++) {
+        const int answer_offset =
+            (int)lroundf(slide_position(answer_width, answer_rest, elapsed)) - answer_rest;
+        reveal_begin(&oracle, 0);
+        canvas_fill(theme->colors.background);
+        reveal_draw(elapsed, FRAME_ALPHA);
+        const int answer_ink = rightmost_ink(theme);
+        if (answer_ink >= 0 && answer_ink - answer_ink_rest != answer_offset) {
+            fail("the answer stands %d from its rest at %u ms; the slide puts it at %d",
+                 answer_ink - answer_ink_rest, (unsigned)elapsed, answer_offset);
+            return;
+        }
+
+        const int number_offset =
+            (int)lroundf(slide_position(number_width, number_rest, elapsed)) - number_rest;
+        begin_on_stage(number, 0);
+        canvas_fill(theme->colors.background);
+        stage_draw(elapsed, FRAME_ALPHA);
+        const int number_ink = rightmost_ink(theme);
+        if (number_ink >= 0 && number_ink - number_ink_rest != number_offset) {
+            fail("the number stands %d from its rest at %u ms; the slide puts it at %d",
+                 number_ink - number_ink_rest, (unsigned)elapsed, number_offset);
+            return;
+        }
+    }
+
+    cue_log_t answer_log;
+    memset(&answer_log, 0, sizeof(answer_log));
+    recording = &answer_log;
+    reveal_begin(&oracle, 0);
+    for (uint32_t now = 0; reveal_is_concealed(now); now += STEP_MS) {
+        recording_now = now;
+        reveal_tick(now);
+    }
+
+    cue_log_t number_log;
+    memset(&number_log, 0, sizeof(number_log));
+    recording = &number_log;
+    begin_on_stage(number, 0);
+    for (uint32_t now = 0; stage_is_animating(now); now += STEP_MS) {
+        recording_now = now;
+        stage_tick(now);
+    }
+    recording = NULL;
+
+    if (answer_log.count != 1 || number_log.count != 1 ||
+        answer_log.cues[0].at_ms != number_log.cues[0].at_ms ||
+        answer_log.cues[0].effect != number_log.cues[0].effect) {
+        fail("the answer is felt %d times, first at %u ms; the slide %d times, first at %u ms",
+             answer_log.count, (unsigned)answer_log.cues[0].at_ms, number_log.count,
+             (unsigned)number_log.cues[0].at_ms);
     }
 }
 
@@ -174,7 +266,7 @@ static void check_stage_band(const theme_t *theme, uint8_t effect, const roll_t 
     }
 
     chosen_effect = effect;
-    stage_configure(false);
+    coin_setting = false;
     begin_on_stage(roll, start);
     const frame_rect_t band = stage_get_rect();
 
@@ -206,7 +298,7 @@ static void check_effects_share_a_rest(const theme_t *theme) {
         const roll_t *roll = &NUMERIC_ROLLS[index];
 
         chosen_effect = 0;
-    stage_configure(false);
+    coin_setting = false;
         render_rest(theme, roll, 0);
         if (is_background_only(theme)) {
             fail("%s rests on an empty frame under %s", roll->answer, EFFECTS[0]->name);
@@ -215,7 +307,7 @@ static void check_effects_share_a_rest(const theme_t *theme) {
 
         for (uint8_t effect = 1; effect < EFFECT_COUNT; effect++) {
             chosen_effect = effect;
-    stage_configure(false);
+    coin_setting = false;
             render_rest(theme, roll, 0);
             if (memcmp(reference, canvas_pixels(), frame_bytes) != 0) {
                 fail("%s rests differently under %s than under %s", roll->answer,
@@ -241,7 +333,7 @@ static void check_effect_settles_before_frames_stop(const theme_t *theme, uint8_
     uint16_t *rest = malloc(frame_bytes);
 
     chosen_effect = effect;
-    stage_configure(false);
+    coin_setting = false;
     render_rest(theme, roll, start);
     memcpy(rest, canvas_pixels(), frame_bytes);
 
@@ -276,7 +368,7 @@ static void check_effect_plays_one_cue(uint8_t effect, const roll_t *roll, uint3
     memset(&log, 0, sizeof(log));
 
     chosen_effect = effect;
-    stage_configure(false);
+    coin_setting = false;
     recording = &log;
     begin_on_stage(roll, start);
     for (uint32_t now = start; stage_is_animating(now); now += STEP_MS) {
@@ -314,7 +406,7 @@ static void check_effect_opens_as_named(const theme_t *theme) {
     const roll_t *roll = &NUMERIC_ROLLS[1];
 
     chosen_effect = effect_index_of("tear");
-    stage_configure(false);
+    coin_setting = false;
     begin_on_stage(roll, 0);
     canvas_fill(theme->colors.background);
     stage_draw(0, FRAME_ALPHA);
@@ -323,7 +415,7 @@ static void check_effect_opens_as_named(const theme_t *theme) {
     }
 
     chosen_effect = effect_index_of("slide");
-    stage_configure(false);
+    coin_setting = false;
     begin_on_stage(roll, 0);
     canvas_fill(theme->colors.background);
     stage_draw(0, FRAME_ALPHA);
@@ -339,14 +431,14 @@ static void check_an_unknown_effect_falls_back(const theme_t *theme) {
     const roll_t *roll = &NUMERIC_ROLLS[2];
 
     chosen_effect = 0;
-    stage_configure(false);
+    coin_setting = false;
     begin_on_stage(roll, 0);
     canvas_fill(theme->colors.background);
     stage_draw(EFFECTS[0]->duration_ms / 2, FRAME_ALPHA);
     memcpy(reference, canvas_pixels(), frame_bytes);
 
     chosen_effect = EFFECT_COUNT;
-    stage_configure(false);
+    coin_setting = false;
     begin_on_stage(roll, 0);
     canvas_fill(theme->colors.background);
     stage_draw(EFFECTS[0]->duration_ms / 2, FRAME_ALPHA);
@@ -366,6 +458,7 @@ int main(void) {
     const theme_t *theme = theme_active();
 
     check_the_kind_picks_the_stage();
+    check_the_answer_enters_as_the_slide(theme);
     check_effects_share_a_rest(theme);
     check_effect_opens_as_named(theme);
     check_an_unknown_effect_falls_back(theme);

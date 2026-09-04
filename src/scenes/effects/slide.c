@@ -3,6 +3,8 @@
  * rest, the same entry the oracle's answer makes.
  */
 
+#include "scenes/effects/slide.h"
+
 #include <math.h>
 #include <stdbool.h>
 
@@ -10,41 +12,42 @@
 #include "scenes/effects/effect.h"
 #include "haptics.h"
 
-#define SLIDE_MS 380
+// How far beyond the edge the glyphs start.
 #define ENTRY_GAP 40
 
-// Offset so the haptic lands with the glyph rather than after it.
-#define THUMP_MS (SLIDE_MS - 60)
-
-static float entry_x = 0.0f;
 static bool thumped = false;
 
-// Hard deceleration, so the number arrives with weight instead of drifting in.
+// Hard deceleration, so the glyphs arrive with weight instead of drifting in.
 static float ease_out_quint(float t) {
     const float inverse = 1.0f - t;
     return 1.0f - inverse * inverse * inverse * inverse * inverse;
 }
 
+float slide_position(int width, int rest, uint32_t elapsed) {
+    if (elapsed >= SLIDE_MS) {
+        return (float)rest;
+    }
+
+    const float entry = -(float)(width + ENTRY_GAP);
+    const float progress = ease_out_quint((float)elapsed / (float)SLIDE_MS);
+    return entry + ((float)rest - entry) * progress;
+}
+
 static void slide_begin(const effect_subject_t *subject, uint32_t seed) {
+    (void)subject;
     (void)seed;
-    entry_x = -(float)(subject->width + ENTRY_GAP);
     thumped = false;
 }
 
 static void slide_tick(uint32_t elapsed) {
-    if (!thumped && elapsed >= THUMP_MS) {
+    if (!thumped && elapsed >= SLIDE_THUMP_MS) {
         thumped = true;
         haptics_play(HAPTIC_ANSWER);
     }
 }
 
 static void slide_draw(const effect_subject_t *subject, uint32_t elapsed, uint8_t alpha) {
-    float x = (float)subject->left;
-    if (elapsed < SLIDE_MS) {
-        const float progress = ease_out_quint((float)elapsed / (float)SLIDE_MS);
-        x = entry_x + ((float)subject->left - entry_x) * progress;
-    }
-
+    const float x = slide_position(subject->width, subject->left, elapsed);
     canvas_text(subject->font, subject->text, (int)lroundf(x), subject->baseline, subject->color,
                 alpha);
 }

@@ -16,7 +16,6 @@
 #include "config.h"
 #include "dice.h"
 #include "scenes/effects/effect.h"
-#include "scenes/numeric.h"
 #include "haptics.h"
 #include "mode.h"
 #include "oracle.h"
@@ -285,7 +284,7 @@ static void check_the_coin_can_be_switched_off(void) {
     }
 
     const frame_rect_t thrown = coin_stage();
-    const frame_rect_t printed = numeric_stage();
+    const frame_rect_t printed = stage_band();
     EXPECT(thrown.top != printed.top, "the coin and the numeric result claim one stage");
 
     for (int enabled = 1; enabled >= 0; enabled--) {
