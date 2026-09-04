@@ -17,6 +17,21 @@ extern "C" {
  * than a silently kept default.
  */
 
+// A refusal's text: the key path and the reason.
+#define CONFIG_ERROR_CAPACITY 96
+
+/*
+ * The name of a theme or a layout is its place on the drive, themes/<name>/
+ * or layouts/<name>.json: one to sixteen lower-case letters, digits, - and _,
+ * since FAT folds case and a name is what a setting is typed as.
+ */
+#define CONFIG_FILE_NAME_CAPACITY 17
+#define CONFIG_BUILTIN_THEME "neon"
+#define CONFIG_BUILTIN_LAYOUT "default"
+
+// The longest sleep a file may ask for, a day, in seconds.
+#define CONFIG_SLEEP_LIMIT_SECONDS 86400
+
 /**
  * Every colour theme.json can name, one list per section of the file. A row
  * is the enum stem, the key, and the general role the key follows when a
@@ -91,15 +106,12 @@ typedef struct {
 
 extern const config_color_spec_t CONFIG_COLORS[CONFIG_COLOR_COUNT];
 
-#define CONFIG_NAME_CAPACITY 24
-#define CONFIG_ERROR_CAPACITY 96
-
 /**
  * What theme.json set. Every colour is optional; the ones the file names are
- * flagged and carried as RGB565.
+ * flagged and carried as RGB565. The theme's name is the folder the file sits
+ * in, so the file carries none.
  */
 typedef struct {
-    char name[CONFIG_NAME_CAPACITY];
     bool has_color[CONFIG_COLOR_COUNT];
     uint16_t color[CONFIG_COLOR_COUNT];
 } config_theme_t;
@@ -133,6 +145,34 @@ typedef struct config_layout {
  */
 bool config_parse_layout(const char *text, size_t length, config_layout_t *layout, char *error,
                          size_t error_capacity);
+
+/**
+ * What settings.json set, every key at its default where the file names
+ * none: the theme and layout in use by name, and the preferences.
+ */
+typedef struct {
+    char theme[CONFIG_FILE_NAME_CAPACITY];
+    char layout[CONFIG_FILE_NAME_CAPACITY];
+    bool display_rotated;
+    bool haptics;
+    bool reverse_knob;
+    uint32_t sleep_after; // seconds without input before the screen sleeps; 0 never sleeps
+    uint8_t brightness;   // 1 to 100%
+} config_settings_t;
+
+/**
+ * What a settings.json naming nothing means. tests/config.c holds
+ * data/settings.json to exactly this, so the file and the code cannot
+ * disagree.
+ */
+void config_default_settings(config_settings_t *settings);
+
+/**
+ * Parses settings.json: every key optional, a key left out at its default.
+ * On refusal returns false with error filled, as "key: reason".
+ */
+bool config_parse_settings(const char *text, size_t length, config_settings_t *settings,
+                           char *error, size_t error_capacity);
 
 #ifdef __cplusplus
 }

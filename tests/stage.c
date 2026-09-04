@@ -1,8 +1,8 @@
 /*
  * The stage's promises, proved on the host. A roll's kind decides what draws:
- * the oracle goes to the reveal, D2 to the coin while the coin is enabled, and
- * every other result to an effect, all sharing the band the caption stays
- * clear of. Every effect in the table is held to the same promises through
+ * the oracle goes to the reveal, a coin to the coin, and every other result,
+ * a two-sided numeric die among them, to an effect, all sharing the band the
+ * caption stays clear of. Every effect in the table is held to the same promises through
  * the stage: it stays inside the band from any start instant, it lands on the
  * same rest as every other effect, the last frame drawn before frames stop is
  * that rest, and it plays exactly one cue. The exit status is the verdict.
@@ -31,12 +31,11 @@
  * check and laid on a copy of the roll as it goes on stage.
  */
 static uint8_t chosen_effect = 0;
-static bool coin_setting = false;
 
 static void begin_on_stage(const roll_t *roll, uint32_t now) {
     roll_t copy = *roll;
     copy.effect = chosen_effect;
-    stage_begin(&copy, coin_setting, now);
+    stage_begin(&copy, now);
 }
 
 #define STEP_MS 1
@@ -79,6 +78,9 @@ static const roll_t NUMERIC_ROLLS[] = {
 #define NUMERIC_ROLL_COUNT (sizeof(NUMERIC_ROLLS) / sizeof(NUMERIC_ROLLS[0]))
 
 static const roll_t COIN_ROLL = {.kind = DIE_COIN, .answer = "2", .value = 2, .modifier = NULL};
+
+// A numeric die with two sides is a number like any other, whatever it is called.
+static const roll_t TWO_SIDED_ROLL = {.kind = DIE_NUMERIC, .answer = "2", .value = 2, .modifier = NULL};
 
 // Instants a roll may begin at, one of them within reach of the clock's wrap.
 static const uint32_t START_TIMES[] = {0, 1, 777, UINT32_MAX - 100};
@@ -126,10 +128,9 @@ static void render_rest(const theme_t *theme, const roll_t *roll, uint32_t start
     stage_draw(start + LONG_AFTER_MS, FRAME_ALPHA);
 }
 
-// The kind of the roll, and the coin setting, decide what is on stage.
+// The kind of the roll decides what is on stage.
 static void check_the_kind_picks_the_stage(void) {
     const roll_t oracle = oracle_outcome(0);
-    coin_setting = true;
 
     begin_on_stage(&oracle, 0);
     if (!is_same_rect(stage_get_rect(), stage_band())) {
@@ -143,7 +144,7 @@ static void check_the_kind_picks_the_stage(void) {
 
     begin_on_stage(&COIN_ROLL, 0);
     if (!is_same_rect(stage_get_rect(), coin_stage())) {
-        fail("D2 with the coin enabled is not on the coin's stage");
+        fail("a coin is not on the coin's stage");
     }
 
     if (!stage_is_rerolled_in_place()) {
@@ -151,10 +152,9 @@ static void check_the_kind_picks_the_stage(void) {
     }
 
     chosen_effect = 0;
-    coin_setting = false;
-    begin_on_stage(&COIN_ROLL, 0);
+    begin_on_stage(&TWO_SIDED_ROLL, 0);
     if (!is_same_rect(stage_get_rect(), stage_band())) {
-        fail("D2 with the coin disabled is not printed on the band");
+        fail("a two-sided numeric die is not printed on the band");
     }
 
     if (stage_is_rerolled_in_place()) {
@@ -191,7 +191,6 @@ static void check_the_answer_enters_as_the_slide(const theme_t *theme) {
     const int number_rest = (CANVAS_WIDTH - number_width) / 2;
 
     chosen_effect = effect_index_of("slide");
-    coin_setting = false;
 
     reveal_begin(&oracle, 0);
     canvas_fill(theme->colors.background);
@@ -266,7 +265,6 @@ static void check_stage_band(const theme_t *theme, uint8_t effect, const roll_t 
     }
 
     chosen_effect = effect;
-    coin_setting = false;
     begin_on_stage(roll, start);
     const frame_rect_t band = stage_get_rect();
 
@@ -298,7 +296,6 @@ static void check_effects_share_a_rest(const theme_t *theme) {
         const roll_t *roll = &NUMERIC_ROLLS[index];
 
         chosen_effect = 0;
-    coin_setting = false;
         render_rest(theme, roll, 0);
         if (is_background_only(theme)) {
             fail("%s rests on an empty frame under %s", roll->answer, EFFECTS[0]->name);
@@ -307,7 +304,6 @@ static void check_effects_share_a_rest(const theme_t *theme) {
 
         for (uint8_t effect = 1; effect < EFFECT_COUNT; effect++) {
             chosen_effect = effect;
-    coin_setting = false;
             render_rest(theme, roll, 0);
             if (memcmp(reference, canvas_pixels(), frame_bytes) != 0) {
                 fail("%s rests differently under %s than under %s", roll->answer,
@@ -333,7 +329,6 @@ static void check_effect_settles_before_frames_stop(const theme_t *theme, uint8_
     uint16_t *rest = malloc(frame_bytes);
 
     chosen_effect = effect;
-    coin_setting = false;
     render_rest(theme, roll, start);
     memcpy(rest, canvas_pixels(), frame_bytes);
 
@@ -368,7 +363,6 @@ static void check_effect_plays_one_cue(uint8_t effect, const roll_t *roll, uint3
     memset(&log, 0, sizeof(log));
 
     chosen_effect = effect;
-    coin_setting = false;
     recording = &log;
     begin_on_stage(roll, start);
     for (uint32_t now = start; stage_is_animating(now); now += STEP_MS) {
@@ -406,7 +400,6 @@ static void check_effect_opens_as_named(const theme_t *theme) {
     const roll_t *roll = &NUMERIC_ROLLS[1];
 
     chosen_effect = effect_index_of("tear");
-    coin_setting = false;
     begin_on_stage(roll, 0);
     canvas_fill(theme->colors.background);
     stage_draw(0, FRAME_ALPHA);
@@ -415,7 +408,6 @@ static void check_effect_opens_as_named(const theme_t *theme) {
     }
 
     chosen_effect = effect_index_of("slide");
-    coin_setting = false;
     begin_on_stage(roll, 0);
     canvas_fill(theme->colors.background);
     stage_draw(0, FRAME_ALPHA);
@@ -431,14 +423,12 @@ static void check_an_unknown_effect_falls_back(const theme_t *theme) {
     const roll_t *roll = &NUMERIC_ROLLS[2];
 
     chosen_effect = 0;
-    coin_setting = false;
     begin_on_stage(roll, 0);
     canvas_fill(theme->colors.background);
     stage_draw(EFFECTS[0]->duration_ms / 2, FRAME_ALPHA);
     memcpy(reference, canvas_pixels(), frame_bytes);
 
     chosen_effect = EFFECT_COUNT;
-    coin_setting = false;
     begin_on_stage(roll, 0);
     canvas_fill(theme->colors.background);
     stage_draw(EFFECTS[0]->duration_ms / 2, FRAME_ALPHA);

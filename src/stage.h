@@ -11,18 +11,17 @@ extern "C" {
 #endif
 
 /*
- * What a roll puts on screen: the reveal for the oracle, the coin for D2
- * while the coin is enabled, and for every other result the digits in the
- * theme's number face, centred on the band the oracle's answer shares,
- * brought there by the effect the roll carries.
+ * What a roll puts on screen: the reveal for the oracle, the coin for a die
+ * of that kind, and for every other result the digits in the theme's number
+ * face, centred on the band the oracle's answer shares, brought there by the
+ * effect the roll carries.
  *
  * The stage picks once, when the roll happens, and everything after goes to
  * what it picked, so only what was begun is ever ticked, drawn or asked for
  * its rows. It is the one place a roll's kind becomes a drawing.
  */
 
-// coin_enabled decides whether D2 is thrown as a coin or printed like any other die.
-void stage_begin(const roll_t *roll, bool coin_enabled, uint32_t now);
+void stage_begin(const roll_t *roll, uint32_t now);
 void stage_draw(uint32_t now, uint8_t alpha);
 frame_rect_t stage_get_rect(void);
 bool stage_is_animating(uint32_t now);

@@ -3,6 +3,7 @@
 #include <Arduino.h>
 #include <USB.h>
 #include <USBMSC.h>
+#include <errno.h>
 #include <esp_partition.h>
 #include <esp_vfs_fat.h>
 #include <freertos/FreeRTOS.h>
@@ -10,6 +11,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 #include <wear_levelling.h>
 
 #include "files.h"
@@ -17,6 +19,7 @@
 #define PARTITION_LABEL "ffat"
 #define MOUNT_POINT "/drive"
 #define MAX_OPEN_FILES 4
+#define PATH_CAPACITY 96
 
 // The largest file worth reading whole; a typeface is a few hundred KB.
 #define MAX_FILE_BYTES (2u * 1024u * 1024u)
@@ -243,13 +246,33 @@ void files_close(void) {
     xSemaphoreGive(lock);
 }
 
-bool files_read(const char *name, char **text, size_t *length) {
-    if (!mounted || strchr(name, '/') != NULL) {
+/*
+ * A name is a path under the drive's root: no leading slash and no ".."
+ * segment, so nothing above the mount point is reachable through the port.
+ */
+static bool resolve(const char *name, char *path) {
+    if (name[0] == '\0' || name[0] == '/' || strstr(name, "..") != NULL) {
         return false;
     }
 
-    char path[64];
-    snprintf(path, sizeof(path), MOUNT_POINT "/%s", name);
+    return snprintf(path, PATH_CAPACITY, MOUNT_POINT "/%s", name) < PATH_CAPACITY;
+}
+
+bool files_mkdir(const char *name) {
+    char path[PATH_CAPACITY];
+    if (!mounted || !resolve(name, path)) {
+        return false;
+    }
+
+    return mkdir(path, 0777) == 0 || errno == EEXIST;
+}
+
+bool files_read(const char *name, char **text, size_t *length) {
+    char path[PATH_CAPACITY];
+    if (!mounted || !resolve(name, path)) {
+        return false;
+    }
+
     FILE *file = fopen(path, "rb");
     if (file == NULL) {
         return false;
@@ -280,12 +303,11 @@ bool files_read(const char *name, char **text, size_t *length) {
 }
 
 bool files_write(const char *name, const char *text) {
-    if (!mounted || strchr(name, '/') != NULL) {
+    char path[PATH_CAPACITY];
+    if (!mounted || !resolve(name, path)) {
         return false;
     }
 
-    char path[64];
-    snprintf(path, sizeof(path), MOUNT_POINT "/%s", name);
     FILE *file = fopen(path, "w");
     if (file == NULL) {
         Serial.printf("drive: could not write %s\n", name);

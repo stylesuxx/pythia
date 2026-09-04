@@ -41,10 +41,11 @@ FONT_GENERATOR := $(BUILD)/make_fonts
 # test program with its own main; its exit status is its verdict.
 SHARED_SOURCES := $(wildcard src/*.c) $(wildcard src/scenes/*.c) $(wildcard src/scenes/effects/*.c) \
                   $(wildcard src/render/*.c) $(wildcard src/render/generated/*.c) tools/host/adapters.c
-# The files under data/ are the built-in palette, die table and the drive's
-# README, embedded verbatim on the device by platformio.ini and here through a
-# source generated from the same files.
-BUILTIN_FILES := data/theme.json data/layout.json data/README.txt
+# The files under data/ are the image of a fresh drive: the defaults, the
+# built-in palette and die table and the drive's README, embedded verbatim on
+# the device by platformio.ini and here through a source generated from the
+# same files.
+BUILTIN_FILES := data/settings.json data/themes/neon/theme.json data/layouts/default.json data/README.txt
 BUILTIN_TEXT := $(BUILD)/generated/builtin_files.c
 SHARED_OBJECTS := $(SHARED_SOURCES:%.c=$(BUILD)/%.o) $(BUILTIN_TEXT:.c=.o)
 PREVIEW_SOURCES := tools/host/preview.c tools/host/gif.c
@@ -156,10 +157,11 @@ endef
 $(BUILTIN_TEXT): $(BUILTIN_FILES)
 	@mkdir -p $(@D)
 	{ printf '#include "builtin_files.h"\n'; \
-	  $(call EMBED_TEXT,data/theme.json,THEME_TEXT); \
-	  $(call EMBED_TEXT,data/layout.json,LAYOUT_TEXT); \
+	  $(call EMBED_TEXT,data/settings.json,SETTINGS_TEXT); \
+	  $(call EMBED_TEXT,data/themes/neon/theme.json,THEME_TEXT); \
+	  $(call EMBED_TEXT,data/layouts/default.json,LAYOUT_TEXT); \
 	  $(call EMBED_TEXT,data/README.txt,README_TEXT); \
-	  printf '\nconst char *theme_builtin_text(void) {\n    return THEME_TEXT;\n}\n\nconst char *layout_builtin_text(void) {\n    return LAYOUT_TEXT;\n}\n\nconst char *readme_builtin_text(void) {\n    return README_TEXT;\n}\n'; } > $@
+	  printf '\nconst char *settings_builtin_text(void) {\n    return SETTINGS_TEXT;\n}\n\nconst char *theme_builtin_text(void) {\n    return THEME_TEXT;\n}\n\nconst char *layout_builtin_text(void) {\n    return LAYOUT_TEXT;\n}\n\nconst char *readme_builtin_text(void) {\n    return README_TEXT;\n}\n'; } > $@
 
 $(BUILTIN_TEXT:.c=.o): $(BUILTIN_TEXT)
 	$(CC) $(CFLAGS) $(CPPFLAGS) -c $< -o $@

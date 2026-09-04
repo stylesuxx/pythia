@@ -76,7 +76,7 @@ static uint8_t fade_alpha(uint32_t now) {
 
 static void roll_and_reveal(uint32_t now) {
     const roll_t roll = roll_die(&dice_active()[selected]);
-    stage_begin(&roll, config.coin_enabled, now);
+    stage_begin(&roll, now);
     mode = MODE_RESULT;
     start_fade(255.0f, 255.0f, 0, now);
     frame_mark_whole();
@@ -265,6 +265,10 @@ void mode_begin(uint32_t now, const mode_config_t *begun_with) {
     frame_mark_whole();
     boot_begin(now);
     start_fade(255.0f, 255.0f, 0, now);
+}
+
+void mode_set_idle_ms(uint32_t idle_ms) {
+    config.idle_ms = idle_ms;
 }
 
 frame_rect_t mode_step(uint32_t now, mode_input_t input) {

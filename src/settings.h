@@ -10,23 +10,20 @@ extern "C" {
 #endif
 
 /*
- * Port: what the device remembers across power cycles. hardware/settings.cpp
- * keeps it in NVS; the host adapters have no store. The shell reads the
- * settings once at boot and hands each to the module that acts on it, so no
- * module consults the store, and the die is the one thing written at runtime.
+ * Port: what the device remembers across power cycles and writes itself, the
+ * die in use and the boot counter. Everything a user chooses lives in
+ * settings.json on the drive, read by user_files.c. hardware/settings.cpp
+ * keeps this in NVS; the host adapters have no store.
  */
 
 typedef struct {
-    bool display_rotated;
-    bool haptics_enabled;
-    bool coin_enabled;
     char die_name[DIE_NAME_CAPACITY]; // resolved against the layout in use at boot
 } settings_t;
 
 /**
- * Opens the store and lays every value it holds over settings, so the caller
- * fills in the defaults first and a value the store lacks keeps them. The die
- * is a name, so a layout that reorders the table still comes back to it.
+ * Opens the store and lays the die it holds over settings, so the caller
+ * fills in the default first and a store without one keeps it. The die is a
+ * name, so a layout that reorders the table still comes back to it.
  */
 void settings_begin(settings_t *settings);
 

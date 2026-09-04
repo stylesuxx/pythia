@@ -153,20 +153,6 @@ static bool parse_section(const parser_t *parser, const char *section, int index
     return true;
 }
 
-static bool parse_name(const parser_t *parser, const jsmntok_t *value, config_theme_t *theme) {
-    if (value->type != JSMN_STRING) {
-        return refuse(parser, "name", "expected a string");
-    }
-
-    if (token_length(value) >= CONFIG_NAME_CAPACITY) {
-        return refuse(parser, "name", "longer than 23 characters");
-    }
-
-    memcpy(theme->name, parser->text + value->start, token_length(value));
-    theme->name[token_length(value)] = '\0';
-    return true;
-}
-
 bool config_parse_theme(const char *text, size_t length, config_theme_t *theme, char *error,
                         size_t error_capacity) {
     const parser_t parser = {text, tokens, error, error_capacity};
@@ -190,15 +176,10 @@ bool config_parse_theme(const char *text, size_t length, config_theme_t *theme, 
     int index = 1;
     for (int entry = 0; entry < tokens[0].size; entry++) {
         const jsmntok_t *key = &tokens[index];
-        const jsmntok_t *value = &tokens[index + 1];
         char path[KEY_PATH_CAPACITY];
         snprintf(path, sizeof(path), "%.*s", quoted_length(key), text + key->start);
 
-        if (token_is(&parser, key, "name")) {
-            if (!parse_name(&parser, value, theme)) {
-                return false;
-            }
-        } else if (key->type == JSMN_STRING && is_section(path)) {
+        if (key->type == JSMN_STRING && is_section(path)) {
             if (!parse_section(&parser, path, index + 1, theme)) {
                 return false;
             }
@@ -259,23 +240,38 @@ static bool parse_kind(const parser_t *parser, const jsmntok_t *value, die_kind_
     return true;
 }
 
-static bool parse_sides(const parser_t *parser, const jsmntok_t *value, uint16_t *sides) {
+/*
+ * A whole number between low and high inclusive. Digits only, so a sign or a
+ * fraction is refused; a run that has already passed high stops early rather
+ * than overflowing.
+ */
+static bool parse_integer(const parser_t *parser, const jsmntok_t *value, unsigned long low,
+                          unsigned long high, unsigned long *number) {
     if (value->type != JSMN_PRIMITIVE) {
         return false;
     }
 
-    unsigned long number = 0;
+    *number = 0;
     for (int at = value->start; at < value->end; at++) {
         const char digit = parser->text[at];
-        if (digit < '0' || digit > '9' || number > 1000) {
+        if (digit < '0' || digit > '9' || *number > high) {
             return false;
         }
 
-        number = number * 10 + (unsigned long)(digit - '0');
+        *number = *number * 10 + (unsigned long)(digit - '0');
+    }
+
+    return value->end > value->start && *number >= low && *number <= high;
+}
+
+static bool parse_sides(const parser_t *parser, const jsmntok_t *value, uint16_t *sides) {
+    unsigned long number;
+    if (!parse_integer(parser, value, 2, 100, &number)) {
+        return false;
     }
 
     *sides = (uint16_t)number;
-    return number >= 2 && number <= 100;
+    return true;
 }
 
 // One entry of the dice array, at index in the tokens.
@@ -444,5 +440,136 @@ bool config_parse_layout(const char *text, size_t length, config_layout_t *layou
     }
 
     layout->count = (uint8_t)array->size;
+    return true;
+}
+
+#define NAME_RULE "lower-case letters, digits, - and _, 1 to 16 characters"
+
+// A theme's or a layout's name, as CONFIG_FILE_NAME_CAPACITY describes it.
+static bool parse_file_name(const parser_t *parser, const jsmntok_t *value, char *name) {
+    if (value->type != JSMN_STRING) {
+        return false;
+    }
+
+    const size_t length = token_length(value);
+    if (length < 1 || length >= CONFIG_FILE_NAME_CAPACITY) {
+        return false;
+    }
+
+    for (size_t at = 0; at < length; at++) {
+        const char character = parser->text[value->start + at];
+        const bool allowed = (
+            (character >= 'a' && character <= 'z') ||
+            (character >= '0' && character <= '9') ||
+            character == '-' ||
+            character == '_'
+        );
+
+        if (!allowed) {
+            return false;
+        }
+    }
+
+    memcpy(name, parser->text + value->start, length);
+    name[length] = '\0';
+    return true;
+}
+
+static bool parse_switch(const parser_t *parser, const jsmntok_t *value, bool *on) {
+    if (value->type != JSMN_PRIMITIVE) {
+        return false;
+    }
+
+    const size_t length = token_length(value);
+    const char *text = parser->text + value->start;
+    if (length == 4 && memcmp(text, "true", 4) == 0) {
+        *on = true;
+    } else if (length == 5 && memcmp(text, "false", 5) == 0) {
+        *on = false;
+    } else {
+        return false;
+    }
+
+    return true;
+}
+
+void config_default_settings(config_settings_t *settings) {
+    memset(settings, 0, sizeof(*settings));
+    snprintf(settings->theme, sizeof(settings->theme), "%s", CONFIG_BUILTIN_THEME);
+    snprintf(settings->layout, sizeof(settings->layout), "%s", CONFIG_BUILTIN_LAYOUT);
+    settings->display_rotated = true;
+    settings->haptics = true;
+    settings->reverse_knob = false;
+    settings->sleep_after = 120;
+    settings->brightness = 100;
+}
+
+bool config_parse_settings(const char *text, size_t length, config_settings_t *settings,
+                           char *error, size_t error_capacity) {
+    const parser_t parser = {text, tokens, error, error_capacity};
+    config_default_settings(settings);
+
+    jsmn_parser state;
+    jsmn_init(&state);
+    const int count = jsmn_parse(&state, text, length, tokens, TOKEN_CAPACITY);
+    if (count == JSMN_ERROR_NOMEM) {
+        return refuse(&parser, "settings", "more entries than the settings can hold");
+    }
+
+    if (count < 0) {
+        return refuse(&parser, "settings", "not valid JSON");
+    }
+
+    if (count == 0 || tokens[0].type != JSMN_OBJECT) {
+        return refuse(&parser, "settings", "expected an object at the top level");
+    }
+
+    int index = 1;
+    for (int entry = 0; entry < tokens[0].size; entry++) {
+        const jsmntok_t *key = &tokens[index];
+        const jsmntok_t *value = &tokens[index + 1];
+        char path[KEY_PATH_CAPACITY];
+        snprintf(path, sizeof(path), "%.*s", quoted_length(key), text + key->start);
+
+        unsigned long number;
+        if (token_is(&parser, key, "theme")) {
+            if (!parse_file_name(&parser, value, settings->theme)) {
+                return refuse(&parser, path, NAME_RULE);
+            }
+        } else if (token_is(&parser, key, "layout")) {
+            if (!parse_file_name(&parser, value, settings->layout)) {
+                return refuse(&parser, path, NAME_RULE);
+            }
+        } else if (token_is(&parser, key, "display_rotated")) {
+            if (!parse_switch(&parser, value, &settings->display_rotated)) {
+                return refuse(&parser, path, "expected true or false");
+            }
+        } else if (token_is(&parser, key, "haptics")) {
+            if (!parse_switch(&parser, value, &settings->haptics)) {
+                return refuse(&parser, path, "expected true or false");
+            }
+        } else if (token_is(&parser, key, "reverse_knob")) {
+            if (!parse_switch(&parser, value, &settings->reverse_knob)) {
+                return refuse(&parser, path, "expected true or false");
+            }
+        } else if (token_is(&parser, key, "sleep_after")) {
+            if (!parse_integer(&parser, value, 0, CONFIG_SLEEP_LIMIT_SECONDS, &number)) {
+                return refuse(&parser, path, "0 to 86400");
+            }
+
+            settings->sleep_after = (uint32_t)number;
+        } else if (token_is(&parser, key, "brightness")) {
+            if (!parse_integer(&parser, value, 1, 100, &number)) {
+                return refuse(&parser, path, "1 to 100");
+            }
+
+            settings->brightness = (uint8_t)number;
+        } else {
+            return refuse(&parser, path, "unknown key");
+        }
+
+        index = skip(&parser, index + 1);
+    }
+
     return true;
 }

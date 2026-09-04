@@ -1,0 +1,9 @@
+{
+  "theme": "neon",
+  "layout": "default",
+  "display_rotated": true,
+  "haptics": true,
+  "reverse_knob": false,
+  "sleep_after": 120,
+  "brightness": 100
+}

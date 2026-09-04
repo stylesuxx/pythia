@@ -187,7 +187,7 @@ static int render_reveal(const char *answer, const char *modifier, const char *c
                                                                            : DIE_NUMERIC;
 
     roll.effect = preview_effect;
-    stage_begin(&roll, false, 0);
+    stage_begin(&roll, 0);
     int frames = 0;
     for (uint32_t now = 0; now <= 1600; now += FRAME_INTERVAL_MS) {
         canvas_fill(theme_active()->colors.background);
@@ -233,7 +233,7 @@ static int render_boot(gif_writer_t *gif) {
  */
 static int render_menu(gif_writer_t *gif) {
     const mode_input_t nothing = {0, false};
-    const mode_config_t config = {.die = dice_index_of("ORACLE"), .idle_ms = 120000, .coin_enabled = true};
+    const mode_config_t config = {.die = dice_index_of("ORACLE"), .idle_ms = 120000};
     mode_begin(0, &config);
     uint32_t now = 0;
     while (mode_get_current() == MODE_BOOT) {
@@ -290,7 +290,7 @@ static int render_roll(const char *die_name, const char *first, const char *seco
         return -1;
     }
 
-    const mode_config_t config = {.die = die, .idle_ms = 120000, .coin_enabled = true};
+    const mode_config_t config = {.die = die, .idle_ms = 120000};
     mode_begin(0, &config);
     uint32_t now = 0;
     while (mode_get_current() == MODE_BOOT) {

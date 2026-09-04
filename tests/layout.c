@@ -34,11 +34,14 @@ static int failures = 0;
         }                                                                                         \
     } while (0)
 
+// The built-in layout's place on the drive, the one file scripted here.
+#define LAYOUT_PATH "layouts/default.json"
+
 // The drive's contents, scripted: a layout file or none; never a theme.
 static const char *served_layout = NULL;
 
 bool files_read(const char *name, char **text, size_t *length) {
-    if (served_layout == NULL || strcmp(name, "layout.json") != 0) {
+    if (served_layout == NULL || strcmp(name, LAYOUT_PATH) != 0) {
         return false;
     }
 
@@ -53,7 +56,7 @@ bool files_read(const char *name, char **text, size_t *length) {
 static char written_layout[1024] = "";
 
 bool files_write(const char *name, const char *text) {
-    if (strcmp(name, "layout.json") == 0) {
+    if (strcmp(name, LAYOUT_PATH) == 0) {
         snprintf(written_layout, sizeof(written_layout), "%s", text);
     }
 
@@ -89,7 +92,7 @@ static const char CUSTOM[] =
 static void check_built_in_file_is_the_table(void) {
     config_layout_t parsed;
     char error[CONFIG_ERROR_CAPACITY] = "";
-    EXPECT(parse(layout_builtin_text(), &parsed, error), "data/layout.json was refused: %s", error);
+    EXPECT(parse(layout_builtin_text(), &parsed, error), "data/layouts/default.json was refused: %s", error);
     EXPECT(parsed.count == 10, "data/layout.json holds %u dice", (unsigned)parsed.count);
 
     dice_apply_file(NULL);
@@ -110,11 +113,14 @@ static void check_built_in_file_is_the_table(void) {
            "a built-in name cannot be drawn: %s", error);
 }
 
-// The README the drive carries has to explain both files.
-static void check_the_readme_names_both_files(void) {
+// The README the drive carries has to explain every file and folder on it.
+static void check_the_readme_names_every_file(void) {
     const char *readme = readme_builtin_text();
-    EXPECT(strstr(readme, "theme.json") != NULL, "the README does not mention theme.json");
-    EXPECT(strstr(readme, "layout.json") != NULL, "the README does not mention layout.json");
+    EXPECT(strstr(readme, "settings.json") != NULL, "the README does not mention settings.json");
+    EXPECT(strstr(readme, "themes/neon/theme.json") != NULL,
+           "the README does not mention themes/neon/theme.json");
+    EXPECT(strstr(readme, "layouts/default.json") != NULL,
+           "the README does not mention layouts/default.json");
     EXPECT(strstr(readme, "STATUS.txt") != NULL, "the README does not mention STATUS.txt");
 }
 
@@ -249,8 +255,8 @@ static void check_user_files_apply(void) {
     EXPECT(apply(NULL, message), "no file was treated as an error: %s", message);
     EXPECT(dice_count() == 10, "no file changed the table");
     EXPECT(strcmp(written_layout, layout_builtin_text()) == 0,
-           "the written-back file is not data/layout.json byte for byte");
-    EXPECT(strstr(message, "layout.json written with the built-in dice") != NULL,
+           "the written-back file is not data/layouts/default.json byte for byte");
+    EXPECT(strstr(message, LAYOUT_PATH " written with the built-in dice") != NULL,
            "the message did not say the file was written: %s", message);
 
     EXPECT(apply(CUSTOM, message), "the custom layout was refused: %s", message);
@@ -258,12 +264,12 @@ static void check_user_files_apply(void) {
     EXPECT(dice_active()[0].effect == effect_index_of("slide") &&
                dice_active()[1].effect == effect_index_of("tear"),
            "the effects did not come through");
-    EXPECT(strstr(message, "layout.json applied: 5 dice") != NULL, "the message was: %s", message);
+    EXPECT(strstr(message, LAYOUT_PATH " applied: 5 dice") != NULL, "the message was: %s", message);
 
     // A refused file changes nothing: the dice the last good file gave stay.
     EXPECT(!apply(D("{\"name\": \"ATTACK\", \"kind\": \"numeric\", \"sides\": 20}"), message),
            "an undrawable name was applied");
-    EXPECT(strstr(message, "layout.json: dice[0].name: 'T' is not in the label face") != NULL,
+    EXPECT(strstr(message, LAYOUT_PATH ": dice[0].name: 'T' is not in the label face") != NULL,
            "the error did not name the file, entry and glyph: %s", message);
     EXPECT(dice_count() == 5, "a refused file dropped the dice in use");
 
@@ -273,7 +279,7 @@ static void check_user_files_apply(void) {
 
 int main(void) {
     check_built_in_file_is_the_table();
-    check_the_readme_names_both_files();
+    check_the_readme_names_every_file();
     check_a_custom_file_parses();
     check_the_default_effect_is_the_first_row();
     check_mistakes_are_named();

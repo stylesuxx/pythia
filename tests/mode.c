@@ -78,9 +78,6 @@ static void pin_the_slide(void) {
     dice_apply_file(&layout);
 }
 
-// Whether D2 is thrown as a coin, handed to the machine at begin.
-static bool coin_setting = true;
-
 static void reset_recording(void) {
     memset(haptic_counts, 0, sizeof(haptic_counts));
     persist_calls = 0;
@@ -141,7 +138,7 @@ static uint32_t step_until(uint32_t from, uint32_t to, ui_mode_t target) {
 // Runs boot with inputs that must be ignored. Returns the instant boot ended.
 static uint32_t boot_on(uint8_t die) {
     reset_recording();
-    const mode_config_t config = {.die = die, .idle_ms = IDLE_SLEEP_MS, .coin_enabled = coin_setting};
+    const mode_config_t config = {.die = die, .idle_ms = IDLE_SLEEP_MS};
     mode_begin(0, &config);
     EXPECT(mode_get_current() == MODE_BOOT, "begin does not start in boot");
 
@@ -271,31 +268,36 @@ static void check_tap_on_a_result_rolls_again(void) {
 }
 
 /**
- * D2 is thrown as a coin unless the setting turns that off, in which case it
- * prints a number like every other die. The two draw different stages, so the
- * rows a roll asks for say which one ran.
+ * A coin is thrown as a coin and a numeric die with two sides prints its
+ * number: the kind the layout gives a die decides, and nothing else. The two
+ * draw different stages, so the rows a roll asks for say which one ran.
  */
-static void check_the_coin_can_be_switched_off(void) {
-    uint8_t coin_die = 0;
-    for (uint8_t index = 0; index < dice_count(); index++) {
-        if (dice_active()[index].kind == DIE_COIN) {
-            coin_die = index;
-        }
-    }
-
+static void check_the_kind_in_the_layout_picks_the_coin(void) {
     const frame_rect_t thrown = coin_stage();
     const frame_rect_t printed = stage_band();
     EXPECT(thrown.top != printed.top, "the coin and the numeric result claim one stage");
 
-    for (int enabled = 1; enabled >= 0; enabled--) {
-        coin_setting = enabled != 0;
-        const char *state = enabled ? "on" : "off";
+    config_layout_t layout;
+    memset(&layout, 0, sizeof(layout));
+    layout.count = 2;
+    for (uint8_t die = 0; die < layout.count; die++) {
+        snprintf(layout.dice[die].name, sizeof(layout.dice[die].name), "D2");
+        layout.dice[die].kind = die == 0 ? DIE_COIN : DIE_NUMERIC;
+        layout.dice[die].sides = 2;
+        layout.dice[die].effect = effect_index_of("slide");
+    }
 
-        const uint32_t now = boot_on(coin_die) + 500;
+    dice_apply_file(&layout);
+
+    for (uint8_t die = 0; die < layout.count; die++) {
+        const bool as_coin = die == 0;
+        const char *kind = as_coin ? "coin" : "numeric";
+
+        const uint32_t now = boot_on(die) + 500;
         tap(now);
-        EXPECT(mode_get_current() == MODE_RESULT, "a tap on the coin die did not roll");
+        EXPECT(mode_get_current() == MODE_RESULT, "a tap on the %s die did not roll", kind);
 
-        const frame_rect_t wanted = enabled ? thrown : printed;
+        const frame_rect_t wanted = as_coin ? thrown : printed;
         bool matched = false;
         for (uint32_t later = now + STEP_MS; later <= now + 300; later += STEP_MS) {
             const frame_rect_t rows = mode_step(later, NOTHING);
@@ -307,21 +309,20 @@ static void check_the_coin_can_be_switched_off(void) {
             break;
         }
 
-        EXPECT(matched, "with the coin %s the roll did not animate stage %d+%d", state,
-               wanted.top, wanted.height);
+        EXPECT(matched, "the %s die did not animate stage %d+%d", kind, wanted.top, wanted.height);
 
-        // The cues belong to what is on stage: the coin has none, the reveal has its answer beat.
+        // The cues belong to what is on stage: the coin has none, the number its effect's beat.
         for (uint32_t later = now; later <= now + 2000; later += STEP_MS) {
             mode_step(later, NOTHING);
         }
 
-        const int expected_cues = enabled ? 0 : 1;
+        const int expected_cues = as_coin ? 0 : 1;
         EXPECT(haptic_counts[HAPTIC_ANSWER] == expected_cues,
-               "with the coin %s the roll played %d answer cues, expected %d", state,
-               haptic_counts[HAPTIC_ANSWER], expected_cues);
+               "the %s die played %d answer cues, expected %d", kind, haptic_counts[HAPTIC_ANSWER],
+               expected_cues);
     }
 
-    coin_setting = true;
+    pin_the_slide();
 }
 
 // The coin fires no cue of its own, and the reveal's cues belong to the
@@ -334,7 +335,6 @@ static void check_a_coin_flip_fires_no_cue(void) {
         }
     }
 
-    coin_setting = true;
     const uint32_t now = boot_on(coin_die) + 500;
     reset_recording();
     tap(now);
@@ -517,7 +517,6 @@ static void check_a_coin_is_rerolled_where_it_lies(void) {
         }
     }
 
-    coin_setting = true;
     uint32_t now = boot_on(coin_die) + 500;
     tap(now);
     for (now += STEP_MS; coin_is_flipping(now); now += STEP_MS) {
@@ -565,10 +564,30 @@ static void check_a_restart_boots_again_on_the_die_in_use(void) {
            (unsigned)mode_get_selected_die(), (unsigned)chosen);
 }
 
+/*
+ * The idle timeout handed to the machine takes effect at the restart that
+ * follows, so a settings file that shortens it sleeps the screen sooner after
+ * the boot sequence the turn triggers.
+ */
+static void check_a_restart_takes_the_new_idle_timeout(void) {
+    const uint32_t now = boot_on(3) + 500;
+    mode_set_idle_ms(IDLE_SLEEP_MS / 2);
+    const mode_input_t restart = {0, false, true};
+    mode_step(now, restart);
+
+    const uint32_t armed = step_until(now + STEP_MS, now + BOOT_LIMIT_MS, MODE_ARMED);
+    EXPECT(armed != 0, "the restarted boot never ended");
+
+    const uint32_t dark = sleep_from(armed);
+    EXPECT(dark > 0, "the screen never slept");
+    EXPECT(dark > armed + IDLE_SLEEP_MS / 2 && dark < armed + IDLE_SLEEP_MS,
+           "the screen slept %u ms after arming with a timeout of %u", (unsigned)(dark - armed),
+           (unsigned)(IDLE_SLEEP_MS / 2));
+}
+
 // A stored die the table no longer has arms the oracle, the die of last resort.
 static void check_a_die_past_the_table_arms_the_oracle(void) {
-    const mode_config_t config = {
-        .die = (uint8_t)(dice_count() + 3), .idle_ms = IDLE_SLEEP_MS, .coin_enabled = coin_setting};
+    const mode_config_t config = {.die = (uint8_t)(dice_count() + 3), .idle_ms = IDLE_SLEEP_MS};
     mode_begin(0, &config);
     EXPECT(step_until(0, BOOT_LIMIT_MS, MODE_ARMED) != 0, "boot did not hand over to armed");
     EXPECT(mode_get_selected_die() == dice_index_of("ORACLE"), "a die past the table armed %u",
@@ -601,7 +620,7 @@ int main(void) {
     check_tap_on_the_list_rolls_at_once();
     check_tap_when_armed_rolls();
     check_tap_on_a_result_rolls_again();
-    check_the_coin_can_be_switched_off();
+    check_the_kind_in_the_layout_picks_the_coin();
     check_a_coin_flip_fires_no_cue();
     check_turning_leaves_a_result();
     check_frames_are_paced();
@@ -614,6 +633,7 @@ int main(void) {
     check_a_die_past_the_table_arms_the_oracle();
     check_a_coin_is_rerolled_where_it_lies();
     check_a_restart_boots_again_on_the_die_in_use();
+    check_a_restart_takes_the_new_idle_timeout();
 
     if (failures > 0) {
         fprintf(stderr, "mode: %d failure%s\n", failures, failures == 1 ? "" : "s");

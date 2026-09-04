@@ -117,14 +117,14 @@ static const stage_adapter_t COIN_ADAPTER = {
 
 static const stage_adapter_t *current = &REVEAL_ADAPTER;
 
-void stage_begin(const roll_t *roll, bool coin_enabled, uint32_t now) {
+void stage_begin(const roll_t *roll, uint32_t now) {
     switch (roll->kind) {
         case DIE_ORACLE: {
             current = &REVEAL_ADAPTER;
         } break;
 
         case DIE_COIN: {
-            current = coin_enabled ? &COIN_ADAPTER : &NUMERIC_ADAPTER;
+            current = &COIN_ADAPTER;
         } break;
 
         case DIE_NUMERIC:

@@ -33,13 +33,19 @@ typedef struct {
 } mode_input_t;
 
 typedef struct {
-    uint8_t die;       // armed after boot; one past the table arms the oracle
-    uint32_t idle_ms;  // input-free time before the screen sleeps; see power.h
-    bool coin_enabled; // D2 thrown as a coin rather than printed
+    uint8_t die;      // armed after boot; one past the table arms the oracle
+    uint32_t idle_ms; // input-free time before the screen sleeps; see power.h
 } mode_config_t;
 
 // Starts the boot sequence, armed afterwards on the configured die.
 void mode_begin(uint32_t now, const mode_config_t *config);
+
+/**
+ * The idle timeout the machine begins with from the next restart on, so a
+ * settings file that changes it is honoured by the boot sequence its turn
+ * triggers.
+ */
+void mode_set_idle_ms(uint32_t idle_ms);
 
 /**
  * Advances the machine to now and returns the canvas rows to push, none when

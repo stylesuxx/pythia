@@ -19,14 +19,9 @@ extern "C" {
 // True once after the computer ejected the drive or the cable was pulled.
 bool files_take_change(void);
 
-/**
- * Takes the drive from the computer. Reads and writes work until
- * files_close() hands it back. False when the drive could not be taken, in
- * which case nothing can be read or written and there is nothing to close.
- */
 bool files_open(void);
 void files_close(void);
-
+bool files_mkdir(const char *name);
 bool files_read(const char *name, char **text, size_t *length);
 bool files_write(const char *name, const char *text);
 

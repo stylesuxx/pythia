@@ -26,19 +26,14 @@
 #include "hardware/touch_cst816.h"
 #include "user_files.h"
 
-/**
- * Idle time before the screen goes dark. Overridable from the build flags, so
- * a build that sleeps quickly is a flag rather than an edit:
- * PLATFORMIO_BUILD_FLAGS=-DIDLE_SLEEP_MS=10000
- */
-#ifndef IDLE_SLEEP_MS
-#define IDLE_SLEEP_MS 120000
-#endif
-
 static bool ready = false;
 static bool safe_mode_announced = false;
 static settings_t settings;
 static mode_config_t config;
+
+// The two settings the shell applies itself, on every read of the inputs and the light.
+static bool reverse_knob = false;
+static uint8_t brightness = 100;
 
 // A refused file names itself in STATUS.txt on the drive and on the port.
 static void report_user_files(user_files_result_t result) {
@@ -47,13 +42,39 @@ static void report_user_files(user_files_result_t result) {
     }
 }
 
+// The machine sleeps after this many milliseconds; a file asking for none never sleeps.
+static uint32_t idle_ms_of(uint32_t sleep_after_seconds) {
+    return sleep_after_seconds == 0 ? UINT32_MAX : sleep_after_seconds * 1000u;
+}
+
+// The light the machine asks for, under the ceiling the settings put on it.
+static uint8_t lit(uint8_t level) {
+    if (level == 0) {
+        return 0;
+    }
+
+    const unsigned scaled = ((unsigned)level * brightness) / 100u;
+    return (uint8_t)(scaled < 1 ? 1 : scaled);
+}
+
+/*
+ * Hands each setting a turn applied to the module that acts on it. The idle
+ * timeout reaches the machine at the restart that follows the turn.
+ */
+static void apply_settings(void) {
+    const config_settings_t *in_use = user_files_settings();
+    panel_set_rotated(in_use->display_rotated);
+    haptics_set_enabled(in_use->haptics);
+    reverse_knob = in_use->reverse_knob;
+    brightness = in_use->brightness;
+    config.idle_ms = idle_ms_of(in_use->sleep_after);
+    mode_set_idle_ms(config.idle_ms);
+}
+
 void setup() {
     Serial.begin(115200);
 
-    // The defaults, for a store that has never been written.
-    settings.display_rotated = true;
-    settings.haptics_enabled = true;
-    settings.coin_enabled = true;
+    // The default, for a store that has never been written.
     strncpy(settings.die_name, "ORACLE", sizeof(settings.die_name));
     settings_begin(&settings);
 
@@ -79,7 +100,9 @@ void setup() {
     }
 
     report_user_files(user_files_begin());
-    panel_set_rotated(settings.display_rotated);
+    Wire.begin(PIN_I2C_SDA, PIN_I2C_SCL, 400000);
+    haptics_begin();
+    apply_settings();
 
     /*
      * The panel keeps its RAM through a reset, so the first frame goes up
@@ -87,20 +110,13 @@ void setup() {
      */
     canvas_fill(theme_active()->colors.background);
     panel_present(canvas_pixels());
-    panel_set_backlight(255);
-
-    Wire.begin(PIN_I2C_SDA, PIN_I2C_SCL, 400000);
-
-    haptics_begin();
-    haptics_set_enabled(settings.haptics_enabled);
+    panel_set_backlight(lit(255));
 
     touch_begin();
     encoder_begin();
     oracle_begin();
 
     config.die = dice_index_of(settings.die_name);
-    config.idle_ms = IDLE_SLEEP_MS;
-    config.coin_enabled = settings.coin_enabled;
     mode_begin(millis(), &config);
     ready = true;
 }
@@ -131,10 +147,14 @@ void loop() {
      * plugging the drive back in.
      */
     const user_files_result_t files = user_files_step();
-    report_user_files(files);
+    if (files != USER_FILES_QUIET) {
+        report_user_files(files);
+        apply_settings();
+    }
 
+    const int32_t detents = encoder_take_detents();
     const mode_input_t input = {
-        encoder_take_detents(),
+        reverse_knob ? -detents : detents,
         touch_read().pressed,
         files != USER_FILES_QUIET
     };
@@ -144,7 +164,7 @@ void loop() {
         panel_present_rect(canvas_pixels(), rows.top, rows.height, rows.left, rows.width);
     }
 
-    panel_set_backlight(mode_get_backlight());
+    panel_set_backlight(lit(mode_get_backlight()));
 
     /*
      * Every pass polls the touch controller over I2C, so this caps the poll

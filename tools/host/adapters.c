@@ -53,6 +53,12 @@ __attribute__((weak)) bool files_open(void) {
 
 __attribute__((weak)) void files_close(void) {}
 
+__attribute__((weak)) bool files_mkdir(const char *name) {
+    (void)name;
+
+    return true;
+}
+
 __attribute__((weak)) bool files_read(const char *name, char **text, size_t *length) {
     (void)name;
     (void)text;

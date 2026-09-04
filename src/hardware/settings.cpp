@@ -4,9 +4,6 @@
 #include <string.h>
 
 #define SETTINGS_NAMESPACE "die_oracle"
-#define KEY_ROTATED "rotated"
-#define KEY_HAPTICS "haptics"
-#define KEY_COIN "coin"
 #define KEY_DIE "die"
 #define KEY_BOOT_ATTEMPTS "boots"
 
@@ -17,9 +14,6 @@ static char stored_die_name[DIE_NAME_CAPACITY] = "";
 
 void settings_begin(settings_t *settings) {
     storage.begin(SETTINGS_NAMESPACE, false);
-    settings->display_rotated = storage.getBool(KEY_ROTATED, settings->display_rotated);
-    settings->haptics_enabled = storage.getBool(KEY_HAPTICS, settings->haptics_enabled);
-    settings->coin_enabled = storage.getBool(KEY_COIN, settings->coin_enabled);
     storage.getString(KEY_DIE, settings->die_name, DIE_NAME_CAPACITY);
     memcpy(stored_die_name, settings->die_name, DIE_NAME_CAPACITY);
 }

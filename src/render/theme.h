@@ -43,11 +43,12 @@ typedef struct theme {
 const theme_t *theme_active(void);
 
 /**
- * Lays a parsed user file over the built-in look: the colours and name it
- * sets win, the rest stay built-in. NULL restores the built-in look. Either
- * way theme_active() answers with the result from then on.
+ * Lays a parsed user file over the built-in look, under the name of the
+ * folder it came from: the colours it sets win, the rest stay built-in. A
+ * NULL file restores the built-in look, whatever the name. Either way
+ * theme_active() answers with the result from then on.
  */
-void theme_apply_file(const config_theme_t *parsed);
+void theme_apply_file(const config_theme_t *parsed, const char *name);
 
 #ifdef __cplusplus
 }
